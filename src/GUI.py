@@ -92,7 +92,6 @@ class MainFrame(tk.Frame):
     def set_selected_game_by_string(self, game_string):
         self.selected_game = [game for game in self.selected_libraryFolder.games if game.name == game_string][0]
             
-        
     def save_config(self):
         self.config.save(self.launchers, self.selected_launcher.get())
 
@@ -163,23 +162,19 @@ class LibViewFrame(tk.Frame):
         except IndexError:
             self.library_dirs = []
         if debug: print("libdirs for " + self.master.selected_launcher.get() + " are " + str([folder.path for folder in self.library_dirs]))
+        
         self.destroy_widgets()
 
         for i in range(0, len(self.library_dirs)):
             j = (i + 1) * 3 - 2
+
             self.labels.append(ttk.Label(self, text=self.library_dirs[i].path))
             self.labels[-1].grid(column=j, row=0, sticky=("S", "W", "E"), padx=5)
 
-            self.del_buttons.append(ttk.Button(self, text="X", width=2))
-            self.del_buttons[-1].config(command=lambda button=self.del_buttons[-1]: self.on_del_button(button))
-            self.del_buttons[-1].grid(column=j+1, row=2, sticky=("N", "E"))
-            
             self.trees.append(ttk.Treeview(self, selectmode="browse", columns=("size", "arrow")))
             self.trees[-1].column("size", width=100, anchor="e")
             self.trees[-1].heading("size", text="Size")
             self.trees[-1].column("arrow", width=100, anchor="center")
-
-            #self.trees[-1].bind("<ButtonRelease-1>", self.on_selection)
             self.trees[-1].bind("<ButtonRelease-1>", lambda event, tree_id=i: self.on_selection(tree_id))
 
             for game in self.library_dirs[i].games:
@@ -194,10 +189,14 @@ class LibViewFrame(tk.Frame):
             self.move_buttons[-1].config(state="disabled", command=lambda button=self.move_buttons[-1]: self.on_move_button(button))
             self.move_buttons[-1].grid(column=j, row=2, sticky=("S", "W", "E"), padx=5)
 
+            self.del_buttons.append(ttk.Button(self, text="X", width=2))
+            self.del_buttons[-1].config(command=lambda button=self.del_buttons[-1]: self.on_del_button(button))
+            self.del_buttons[-1].grid(column=j+1, row=2, sticky=("N", "E"))
+
             self.columnconfigure([j], minsize=300, weight=1)#, pady=50)
             self.columnconfigure([j+1], minsize=10, weight=0)#, pady=50)
             self.rowconfigure([0, 2], weight=0, minsize=10)
-            self.rowconfigure([1], minsize=300, weight=1)
+            self.rowconfigure([1], minsize=110, weight=1)
 
     def destroy_widgets(self):
         for tree in self.trees:
@@ -248,6 +247,7 @@ class LibViewFrame(tk.Frame):
         alt_path = self.master.launchers[self.master.selected_launcher.get()].libraryFolders[buttonindex].path
         if debug: print(f"moving game {game.name} from {og_path} to {alt_path}")
         if debug: print(f"mklink /j {os.path.join(alt_path, game.name)} {os.path.join(og_path, game.name)}")
+        #TODO
 
 
 class LauncherDialog(tk.Toplevel):
