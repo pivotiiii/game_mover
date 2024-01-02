@@ -4,6 +4,7 @@ from tkinter import filedialog
 from tkinter.scrolledtext import ScrolledText
 import game_mover
 import json
+import os
 
 config_json = "game_mover.json"
 debug = True
@@ -56,10 +57,12 @@ class MainFrame(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.config = Config()
         self.launchers = self.config.launchers
-        self.launcher_names = [launcher for launcher in self.launchers]
+        self.launcher_names = self.get_launcher_names()
 
         self.selected_launcher = tk.StringVar()
         self.selected_launcher.set(self.config.last_selected)
+        self.selected_game = None
+        self.selected_libraryFolder = None
 
         self.launcher_frame = LauncherFrame(self)
         self.launcher_frame.grid(column=0, row=0, sticky=("N", "W"), padx=5, pady=10)
@@ -71,7 +74,25 @@ class MainFrame(tk.Frame):
         self.rowconfigure(0, weight = 0)
         self.rowconfigure(1, weight = 1)
 
-
+    def get_selected_launcher_name(self):
+        return self.selected_launcher.get()
+    
+    def get_launcher_names(self):
+        return [launcher for launcher in self.launchers]
+    
+    def get_selected_launcher_libraryFolders(self):
+        return self.launchers[self.get_selected_launcher_name()].libraryFolders
+    
+    def get_selected_libraryFolder_by_index(self, id):
+        return self.get_selected_launcher_libraryFolders()[id]
+    
+    def set_selected_libraryFolder_by_index(self, id):
+        self.selected_libraryFolder =  self.get_selected_launcher_libraryFolders()[id]
+    
+    def set_selected_game_by_string(self, game_string):
+        self.selected_game = [game for game in self.selected_libraryFolder.games if game.name == game_string][0]
+            
+        
     def save_config(self):
         self.config.save(self.launchers, self.selected_launcher.get())
 
@@ -162,8 +183,10 @@ class LibViewFrame(tk.Frame):
             self.trees[-1].column("size", width=100, anchor="e")
             self.trees[-1].heading("size", text="Size")
             self.trees[-1].column("arrow", width=100, anchor="center")
-            #self.trees[-1].bind("<<TreeviewSelect>>", self.on_selection)
-            self.trees[-1].bind("<ButtonRelease-1>", self.on_selection)
+
+            #self.trees[-1].bind("<ButtonRelease-1>", self.on_selection)
+            self.trees[-1].bind("<ButtonRelease-1>", lambda tree=self.trees[-1]: self.on_selection(tree))
+
             for game in self.library_dirs[i].games:
                 self.trees[-1].insert("", "end", game.name, text=game.name, values=(game.size, str(game.isJunction)))
             self.trees[-1].grid(column=j, columnspan=2, row=1, sticky=("N", "W", "E", "S"), padx=(3, 0))
@@ -172,7 +195,8 @@ class LibViewFrame(tk.Frame):
             self.scrollbars[-1].grid(column=j+2, row=1, sticky=("N", "S"), padx=(0, 3))
             self.trees[-1]["yscrollcommand"] = self.scrollbars[-1].set
 
-            self.buttons.append(ttk.Button(self, text="Move here", command=self.on_move_button))
+            self.buttons.append(ttk.Button(self, text="Move here"))
+            self.buttons[-1].config(state="disabled", command=lambda button=self.buttons[-1]: self.on_move_button(button))
             self.buttons[-1].grid(column=j, row=2, sticky=("S", "W", "E"), padx=5)
 
             self.columnconfigure([j], minsize=300, weight=1)#, pady=50)
@@ -193,8 +217,11 @@ class LibViewFrame(tk.Frame):
         for button in self.buttons:
             button.destroy()
         self.buttons = []
+        for button in self.del_buttons:
+            button.destroy()
+        self.del_buttons = []
     
-    def on_selection(self, event=None):
+    def on_selection(self, selected_tree, event=None):
             selected_items = []
             i = 0
             for tree in self.trees:
@@ -211,9 +238,16 @@ class LibViewFrame(tk.Frame):
 
             if debug: print("selected " + self.last_selected_value + " from tree " + str(self.last_selected_tree_index))    
             self.trees[self.last_selected_tree_index].selection_set((self.last_selected_value, ))
+            #self.master.selected_game = [game for game in self.master.launchers[self.master.selected_launcher.get()].libraryFolders[self.last_selected_tree_index].games if game.name == self.last_selected_value][0]
+            self.master.set_selected_libraryFolder_by_index(self.last_selected_tree_index)
+            self.master.set_selected_game_by_string(self.last_selected_value)
+            
 
             for button in self.buttons:
                 button.config(state="normal")
+            if self.master.selected_game.isJunction:
+                for button in self.buttons:
+                    button.config(state="disabled")
             self.buttons[self.last_selected_tree_index].config(state="disabled")
 
     def on_del_button(self, button, event=None):
@@ -223,8 +257,13 @@ class LibViewFrame(tk.Frame):
         self.master.libview_frame.refresh()
         self.master.save_config()
 
-    def on_move_button(self, event=None):
-        pass
+    def on_move_button(self, button, event=None):
+        buttonindex = int((button.grid_info()["column"]+2)/3-1)
+        game = self.master.selected_game
+        og_path = self.master.selected_libraryFolder.path
+        alt_path = self.master.launchers[self.master.selected_launcher.get()].libraryFolders[buttonindex].path
+        if debug: print(f"moving game {game.name} from {og_path} to {alt_path}")
+        if debug: print(f"mklink /j {os.path.join(alt_path, game.name)} {os.path.join(og_path, game.name)}")
 
 
 class LauncherDialog(tk.Toplevel):
