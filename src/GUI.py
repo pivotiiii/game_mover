@@ -153,18 +153,13 @@ class LibViewFrame(tk.Frame):
         self.labels = []
         self.trees = []
         self.scrollbars = []
-        self.buttons = []
+        self.move_buttons = []
         self.del_buttons = []
-        self.last_selected_tree_index = -1
-        self.last_selected_value = ""
         self.refresh()
         
     def refresh(self):
-        self.last_selected_tree_index = -1
-        self.last_selected_value = ""
-        
         try:
-            self.library_dirs = self.master.launchers[self.master.selected_launcher.get()].libraryFolders
+            self.library_dirs = self.master.get_selected_launcher_libraryFolders()
         except IndexError:
             self.library_dirs = []
         if debug: print("libdirs for " + self.master.selected_launcher.get() + " are " + str([folder.path for folder in self.library_dirs]))
@@ -179,13 +174,13 @@ class LibViewFrame(tk.Frame):
             self.del_buttons[-1].config(command=lambda button=self.del_buttons[-1]: self.on_del_button(button))
             self.del_buttons[-1].grid(column=j+1, row=2, sticky=("N", "E"))
             
-            self.trees.append(ttk.Treeview(self, columns=("size", "arrow")))
+            self.trees.append(ttk.Treeview(self, selectmode="browse", columns=("size", "arrow")))
             self.trees[-1].column("size", width=100, anchor="e")
             self.trees[-1].heading("size", text="Size")
             self.trees[-1].column("arrow", width=100, anchor="center")
 
             #self.trees[-1].bind("<ButtonRelease-1>", self.on_selection)
-            self.trees[-1].bind("<ButtonRelease-1>", lambda tree=self.trees[-1]: self.on_selection(tree))
+            self.trees[-1].bind("<ButtonRelease-1>", lambda event, tree_id=i: self.on_selection(tree_id))
 
             for game in self.library_dirs[i].games:
                 self.trees[-1].insert("", "end", game.name, text=game.name, values=(game.size, str(game.isJunction)))
@@ -195,9 +190,9 @@ class LibViewFrame(tk.Frame):
             self.scrollbars[-1].grid(column=j+2, row=1, sticky=("N", "S"), padx=(0, 3))
             self.trees[-1]["yscrollcommand"] = self.scrollbars[-1].set
 
-            self.buttons.append(ttk.Button(self, text="Move here"))
-            self.buttons[-1].config(state="disabled", command=lambda button=self.buttons[-1]: self.on_move_button(button))
-            self.buttons[-1].grid(column=j, row=2, sticky=("S", "W", "E"), padx=5)
+            self.move_buttons.append(ttk.Button(self, text="Move here"))
+            self.move_buttons[-1].config(state="disabled", command=lambda button=self.move_buttons[-1]: self.on_move_button(button))
+            self.move_buttons[-1].grid(column=j, row=2, sticky=("S", "W", "E"), padx=5)
 
             self.columnconfigure([j], minsize=300, weight=1)#, pady=50)
             self.columnconfigure([j+1], minsize=10, weight=0)#, pady=50)
@@ -214,41 +209,30 @@ class LibViewFrame(tk.Frame):
         for scrollbar in self.scrollbars:
             scrollbar.destroy()
         self.scrollbars = []
-        for button in self.buttons:
+        for button in self.move_buttons:
             button.destroy()
-        self.buttons = []
+        self.move_buttons = []
         for button in self.del_buttons:
             button.destroy()
         self.del_buttons = []
     
-    def on_selection(self, selected_tree, event=None):
-            selected_items = []
-            i = 0
-            for tree in self.trees:
-                for item in tree.selection():
-                    selected_items.append((item, i))
-                tree.selection_set(())
-                i = i + 1
-            if self.last_selected_value == selected_items[0][0]:
-                self.last_selected_value = selected_items[-1][0]
-                self.last_selected_tree_index = selected_items[-1][1]
-            else:
-                self.last_selected_value = selected_items[0][0]
-                self.last_selected_tree_index = selected_items[0][1]
-
-            if debug: print("selected " + self.last_selected_value + " from tree " + str(self.last_selected_tree_index))    
-            self.trees[self.last_selected_tree_index].selection_set((self.last_selected_value, ))
-            #self.master.selected_game = [game for game in self.master.launchers[self.master.selected_launcher.get()].libraryFolders[self.last_selected_tree_index].games if game.name == self.last_selected_value][0]
-            self.master.set_selected_libraryFolder_by_index(self.last_selected_tree_index)
-            self.master.set_selected_game_by_string(self.last_selected_value)
+    def on_selection(self, tree_id, event=None):
+        selected_item = self.trees[tree_id].selection()[0]
+        selected_path = self.library_dirs[tree_id].path
+        if debug: print(f"selected {selected_item} from tree {tree_id} with path {selected_path}")    
+        for i in range(0, len(self.trees)):
+            if i == tree_id: continue
+            self.trees[i].selection_set([])
             
+        self.master.set_selected_libraryFolder_by_index(tree_id)
+        self.master.set_selected_game_by_string(selected_item)            
 
-            for button in self.buttons:
-                button.config(state="normal")
-            if self.master.selected_game.isJunction:
-                for button in self.buttons:
-                    button.config(state="disabled")
-            self.buttons[self.last_selected_tree_index].config(state="disabled")
+        for button in self.move_buttons:
+            button.config(state="normal")
+        if self.master.selected_game.isJunction:
+            for button in self.move_buttons:
+                button.config(state="disabled")
+        self.move_buttons[tree_id].config(state="disabled")
 
     def on_del_button(self, button, event=None):
         buttonindex = int((button.grid_info()["column"]+1)/3-1)
