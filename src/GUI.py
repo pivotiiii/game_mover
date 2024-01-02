@@ -150,9 +150,13 @@ class LibViewFrame(tk.Frame):
         self.destroy_widgets()
 
         for i in range(0, len(self.library_dirs)):
-            j = (i + 1) * 2 - 1
+            j = (i + 1) * 3 - 2
             self.labels.append(ttk.Label(self, text=self.library_dirs[i].path))
             self.labels[-1].grid(column=j, row=0, sticky=("S", "W", "E"), padx=5)
+
+            self.del_buttons.append(ttk.Button(self, text="X", width=2))
+            self.del_buttons[-1].config(command=lambda button=self.del_buttons[-1]: self.on_del_button(button))
+            self.del_buttons[-1].grid(column=j+1, row=2, sticky=("N", "E"))
             
             self.trees.append(ttk.Treeview(self, columns=("size", "arrow")))
             self.trees[-1].column("size", width=100, anchor="e")
@@ -162,10 +166,10 @@ class LibViewFrame(tk.Frame):
             self.trees[-1].bind("<ButtonRelease-1>", self.on_selection)
             for game in self.library_dirs[i].games:
                 self.trees[-1].insert("", "end", game.name, text=game.name, values=(game.size, str(game.isJunction)))
-            self.trees[-1].grid(column=j, row=1, sticky=("N", "W", "E", "S"), padx=(3, 0))
+            self.trees[-1].grid(column=j, columnspan=2, row=1, sticky=("N", "W", "E", "S"), padx=(3, 0))
             
             self.scrollbars.append(ttk.Scrollbar(self, orient="vertical", command=self.trees[-1].yview))
-            self.scrollbars[-1].grid(column=j+1, row=1, sticky=("N", "S"), padx=(0, 3))
+            self.scrollbars[-1].grid(column=j+2, row=1, sticky=("N", "S"), padx=(0, 3))
             self.trees[-1]["yscrollcommand"] = self.scrollbars[-1].set
 
             self.buttons.append(ttk.Button(self, text="Move here", command=self.on_move_button))
@@ -211,6 +215,13 @@ class LibViewFrame(tk.Frame):
             for button in self.buttons:
                 button.config(state="normal")
             self.buttons[self.last_selected_tree_index].config(state="disabled")
+
+    def on_del_button(self, button, event=None):
+        buttonindex = int((button.grid_info()["column"]+1)/3-1)
+        if debug: print("deleting libdir " + self.master.launchers[self.master.selected_launcher.get()].libraryFolders[buttonindex].path)
+        self.master.launchers[self.master.selected_launcher.get()].libraryFolders.pop(buttonindex)
+        self.master.libview_frame.refresh()
+        self.master.save_config()
 
     def on_move_button(self, event=None):
         pass
