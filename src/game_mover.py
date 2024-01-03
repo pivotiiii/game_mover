@@ -63,6 +63,8 @@ class GameFolder(object):
         self.size = self.get_readable_size()
         self.isJunction = isJunction
         self.junctionTarget = junctionTarget
+        self.isJunctionTarget = False
+        self.originalPath = None
 
     def get_readable_size(self):
         if self.sizeInBytes > 1073741824:

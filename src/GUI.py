@@ -93,18 +93,39 @@ class MainFrame(tk.Frame):
     def get_launcher_names(self):
         return [launcher for launcher in self.launchers]
     
+    def get_libraryFolder_by_path(self, path):
+        lds = self.get_selected_launcher_libraryFolders()
+        for i in range(0, len(lds)):
+            try:
+                if os.path.abspath(lds[i].path) == os.path.commonpath([lds[i].path, path]):
+                    return lds[i]
+            except ValueError:
+                continue
+        return None
+    
     def get_selected_launcher_libraryFolders(self):
         return self.launchers[self.get_selected_launcher_name()].libraryFolders
 
-    
     def get_selected_libraryFolder_by_index(self, id):
         return self.get_selected_launcher_libraryFolders()[id]
     
     def set_selected_libraryFolder_by_index(self, id):
-        self.selected_libraryFolder =  self.get_selected_launcher_libraryFolders()[id]
+        self.selected_libraryFolder = self.get_selected_launcher_libraryFolders()[id]
+    
+    def get_index_by_libraryFolder(self, libdir):
+        ld = self.get_selected_launcher_libraryFolders()
+        return ld.index(libdir)
     
     def set_selected_game_by_string(self, game_string):
         self.selected_game = [game for game in self.selected_libraryFolder.games if game.name == game_string][0]
+
+    def set_game_as_junction_target(self, libraryFolderIndex, game):
+        games = self.get_selected_launcher().libraryFolders[libraryFolderIndex].games
+        for i in range(0, len(games)):
+            if games[i].name == game.name:
+                self.get_selected_launcher().libraryFolders[libraryFolderIndex].games[i].isJunctionTarget = True
+                self.get_selected_launcher().libraryFolders[libraryFolderIndex].games[i].originalPath = os.path.abspath(os.path.join(game.library, game.name))
+                break
             
     def save_config(self):
         self.config.save(self.launchers, self.selected_launcher.get())
@@ -198,12 +219,25 @@ class LibViewFrame(tk.Frame):
                     for k in range(0, len(self.library_dirs)):
                         try:
                             if os.path.abspath(self.library_dirs[k].path) == os.path.commonpath([self.library_dirs[k].path, game.junctionTarget]):
+                                self.master.set_game_as_junction_target(k, game)
+                        except ValueError:
+                            continue
+            
+            for game in self.library_dirs[i].games:
+                location_string = ""
+                if game.isJunction:
+                    location_string = str(game.junctionTarget)
+                    for k in range(0, len(self.library_dirs)):
+                        try:
+                            if os.path.abspath(self.library_dirs[k].path) == os.path.commonpath([self.library_dirs[k].path, game.junctionTarget]):
                                 location_string = self.build_location_string(i, k, len(self.library_dirs))
                                 print(f"treffer des targets {game.name} in dir {k}: {self.library_dirs[k].path}")
                         except ValueError:
                             continue
+                elif game.isJunctionTarget:
+                    location_string = "JUNCTION"
                 self.trees[-1].insert("", "end", game.name, text=game.name, values=(game.size, location_string))
-                
+
             self.trees[-1].grid(column=j, columnspan=2, row=1, sticky=("N", "W", "E", "S"), padx=(3, 0))
             
             self.scrollbars.append(ttk.Scrollbar(self, orient="vertical", command=self.trees[-1].yview))
@@ -245,8 +279,6 @@ class LibViewFrame(tk.Frame):
                 location_string = location_string + arrow
         return location_string
 
-        
-    
     def destroy_widgets(self):
         for tree in self.trees:
             tree.destroy()
@@ -275,12 +307,24 @@ class LibViewFrame(tk.Frame):
         self.master.set_selected_libraryFolder_by_index(tree_id)
         self.master.set_selected_game_by_string(selected_item)            
 
-        for button in self.move_buttons:
-            button.config(state="normal")
         if self.master.selected_game.isJunction:
             for button in self.move_buttons:
                 button.config(state="disabled")
-        self.move_buttons[tree_id].config(state="disabled")
+                button.config(text="Move here")
+            self.move_buttons[tree_id].config(state="normal")
+            self.move_buttons[tree_id].config(text="Return here")
+        else:
+            for button in self.move_buttons:
+                button.config(state="normal")
+                button.config(text="Move here")
+            self.move_buttons[tree_id].config(state="disabled")
+        if self.master.selected_game.isJunctionTarget:
+            ld = self.master.get_libraryFolder_by_path(self.master.selected_game.originalPath)
+            idx = self.master.get_index_by_libraryFolder(ld)
+            self.move_buttons[idx].config(text="Return here")
+
+
+        
 
     def on_del_button(self, button, event=None):
         buttonindex = int((button.grid_info()["column"]+1)/3-1)
