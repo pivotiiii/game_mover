@@ -1,6 +1,7 @@
 import tkinter as tk 
 from tkinter import ttk
-from tkinter import filedialog 
+from tkinter import filedialog
+from tkinter import messagebox
 import game_mover
 import json
 import os
@@ -166,8 +167,21 @@ class LauncherFrame(tk.Frame):
 
     def on_add_launcher(self, event=None):
         launcher = LauncherDialog(self).show()
-        if launcher == "" or launcher == None:
+        if launcher.lower() == "steam":
+            mb = messagebox.askyesno("Added Steam", 
+                                     "It seems like you want to add Steam.\n"
+                                     "Steam has a built in function to move games.\n"
+                                     "To access it go to Steam > Settings > Storage.\n"
+                                     "Add anyway?")
+            if not mb:
+                return
+        elif launcher == "" or launcher == None:
             return
+        elif launcher in self.master.get_launcher_names():
+            mb = messagebox.showerror("Error", f"{launcher} already exists.")
+            return
+        
+
         self.master.launchers[launcher] = game_mover.Launcher(launcher)
         self.master.selected_launcher.set(launcher)
         self.master.libview_frame.refresh()
