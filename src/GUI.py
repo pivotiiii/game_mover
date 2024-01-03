@@ -9,6 +9,17 @@ import os
 config_json = "game_mover.json"
 debug = True
 
+ucross = "\u2612"
+ucross2 = "\u22a0"
+uboxline = "\u229f"
+ucheck = "\u2611"
+ubox = "\u2610"
+uboxdot = "\u26f6"
+#uarrowleft = "\u2190"
+uarrowleft = "\u21fd"
+#uarrowright = "\u2192"
+uarrowright = "\u21fe"
+
 class Config(object):
     def __init__(self):
         self.config_json = config_json
@@ -46,11 +57,7 @@ class Config(object):
             for folder in launcher_dict[item].libraryFolders:
                 self.config["launchers"][item]["libraryFolders"].append(folder.path)
         with open(self.config_json, "w") as file:
-            json.dump(self.config, file)
-    
-    def write_config_file(self, dic):
-        with open(self.config_json, "w") as file:
-            json.dump(self.config, file)
+            json.dump(self.config, file, indent=4)
 
 class MainFrame(tk.Frame):
     def __init__(self, parent):
@@ -60,7 +67,10 @@ class MainFrame(tk.Frame):
         self.launcher_names = self.get_launcher_names()
 
         self.selected_launcher = tk.StringVar()
-        self.selected_launcher.set(self.config.last_selected)
+        if not self.config.last_selected in self.launcher_names:
+            self.selected_launcher.set("")
+        else:
+            self.selected_launcher.set(self.config.last_selected)
         self.selected_game = None
         self.selected_libraryFolder = None
 
@@ -74,6 +84,9 @@ class MainFrame(tk.Frame):
         self.rowconfigure(0, weight = 0)
         self.rowconfigure(1, weight = 1)
 
+    def get_selected_launcher(self):
+        return self.launchers[self.selected_launcher.get()]
+    
     def get_selected_launcher_name(self):
         return self.selected_launcher.get()
     
@@ -82,6 +95,7 @@ class MainFrame(tk.Frame):
     
     def get_selected_launcher_libraryFolders(self):
         return self.launchers[self.get_selected_launcher_name()].libraryFolders
+
     
     def get_selected_libraryFolder_by_index(self, id):
         return self.get_selected_launcher_libraryFolders()[id]
@@ -97,10 +111,6 @@ class MainFrame(tk.Frame):
 
         pass
         
-
-    
-
-
 class LauncherFrame(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
@@ -118,26 +128,30 @@ class LauncherFrame(tk.Frame):
         self.add_lib_button = ttk.Button(self, text="Add Folder", command=self.on_add_lib)
         self.add_lib_button.grid(column=2, row=0, sticky=("N", "W", "S", "E"))
 
+        ttk.Label(self, text=ucross + uarrowleft + uboxdot).grid(column=3, row=0)
+
+
         self.refresh()
 
     def refresh(self):
-        names = [launcher for launcher in self.master.launchers]
+        names = self.master.get_launcher_names()
         names.sort()
         if debug: print(names)
         self.selected_launcher_combobox["values"] = names
-        self.selected_launcher_combobox.set(self.master.selected_launcher.get())
+        self.selected_launcher_combobox.set(self.master.get_selected_launcher_name())
 
     def on_add_launcher(self, event=None):
         launcher = LauncherDialog(self).show()
         self.master.launchers[launcher] = game_mover.Launcher(launcher)
         self.master.selected_launcher.set(launcher)
+        self.master.libview_frame.refresh()
         self.master.save_config()
         self.refresh()
 
     def on_add_lib(self, event=None):
         #folder = FolderDialog(self).show()
         folder = filedialog.askdirectory()
-        self.master.launchers[self.master.selected_launcher.get()].add_library_folder(folder)
+        self.master.get_selected_launcher().add_library_folder(folder)
         self.master.libview_frame.refresh()
         self.master.save_config()
 
@@ -159,7 +173,7 @@ class LibViewFrame(tk.Frame):
     def refresh(self):
         try:
             self.library_dirs = self.master.get_selected_launcher_libraryFolders()
-        except IndexError:
+        except KeyError or IndexError:
             self.library_dirs = []
         if debug: print("libdirs for " + self.master.selected_launcher.get() + " are " + str([folder.path for folder in self.library_dirs]))
         
@@ -178,7 +192,18 @@ class LibViewFrame(tk.Frame):
             self.trees[-1].bind("<ButtonRelease-1>", lambda event, tree_id=i: self.on_selection(tree_id))
 
             for game in self.library_dirs[i].games:
-                self.trees[-1].insert("", "end", game.name, text=game.name, values=(game.size, str(game.isJunction)))
+                location_string = ""
+                if game.isJunction:
+                    location_string = str(game.junctionTarget)
+                    for k in range(0, len(self.library_dirs)):
+                        try:
+                            if os.path.abspath(self.library_dirs[k].path) == os.path.commonpath([self.library_dirs[k].path, game.junctionTarget]):
+                                location_string = self.build_location_string(i, k, len(self.library_dirs))
+                                print(f"treffer des targets {game.name} in dir {k}: {self.library_dirs[k].path}")
+                        except ValueError:
+                            continue
+                self.trees[-1].insert("", "end", game.name, text=game.name, values=(game.size, location_string))
+                
             self.trees[-1].grid(column=j, columnspan=2, row=1, sticky=("N", "W", "E", "S"), padx=(3, 0))
             
             self.scrollbars.append(ttk.Scrollbar(self, orient="vertical", command=self.trees[-1].yview))
@@ -191,13 +216,37 @@ class LibViewFrame(tk.Frame):
 
             self.del_buttons.append(ttk.Button(self, text="X", width=2))
             self.del_buttons[-1].config(command=lambda button=self.del_buttons[-1]: self.on_del_button(button))
-            self.del_buttons[-1].grid(column=j+1, row=2, sticky=("N", "E"))
+            self.del_buttons[-1].grid(column=j+1, row=2, sticky=("S", "E"))
 
             self.columnconfigure([j], minsize=300, weight=1)#, pady=50)
             self.columnconfigure([j+1], minsize=10, weight=0)#, pady=50)
             self.rowconfigure([0, 2], weight=0, minsize=10)
             self.rowconfigure([1], minsize=110, weight=1)
 
+    def build_location_string(self, junctionId, targetId, length):
+        location_string = " "
+        arrow = " "
+        junctionFound = False
+        targetFound = False
+        for i in range(0, length):
+            if i == junctionId:
+                location_string = location_string + " " + uboxdot + " "
+                junctionFound = True
+                if not targetFound:
+                    arrow = uarrowright
+            elif i == targetId:
+                location_string = location_string + ucross
+                targetFound = True
+                if not junctionFound:
+                    arrow = uarrowleft
+            else:
+                location_string = location_string + ubox
+            if not i == length - 1:
+                location_string = location_string + arrow
+        return location_string
+
+        
+    
     def destroy_widgets(self):
         for tree in self.trees:
             tree.destroy()
