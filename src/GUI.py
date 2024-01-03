@@ -11,17 +11,6 @@ import _winapi
 config_json = "game_mover.json"
 debug = True
 
-ucross = "\u2612"
-ucross2 = "\u22a0"
-uboxline = "\u229f"
-ucheck = "\u2611"
-ubox = "\u2610"
-uboxdot = "\u26f6"
-#uarrowleft = "\u2190"
-uarrowleft = "\u21fd"
-#uarrowright = "\u2192"
-uarrowright = "\u21fe"
-
 class Config(object):
     def __init__(self):
         self.config_json = config_json
@@ -139,8 +128,6 @@ class MainFrame(tk.Frame):
 class LauncherFrame(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
-        
-        #self.selected_launcher = tk.StringVar()
 
         self.selected_launcher_combobox = ttk.Combobox(self, textvariable=self.master.selected_launcher)
         self.selected_launcher_combobox.state(["readonly"])
@@ -152,9 +139,6 @@ class LauncherFrame(tk.Frame):
 
         self.add_lib_button = ttk.Button(self, text="Add Folder", command=self.on_add_lib)
         self.add_lib_button.grid(column=2, row=0, sticky=("N", "W", "S", "E"))
-
-        ttk.Label(self, text=ucross + uarrowleft + uboxdot).grid(column=3, row=0)
-
 
         self.refresh()
 
@@ -280,6 +264,12 @@ class LibViewFrame(tk.Frame):
         self.rowconfigure([1], minsize=110, weight=1)
 
     def build_location_string(self, junctionId, targetId, length):
+        ucross = "\u2612"
+        ubox = "\u2610"
+        uboxdot = "\u26f6"
+        uarrowleft = "\u21fd"
+        uarrowright = "\u21fe"
+
         location_string = " "
         arrow = " "
         junctionFound = False
