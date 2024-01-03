@@ -341,48 +341,40 @@ class LibViewFrame(tk.Frame):
         game = self.master.selected_game
         if game.isJunction:
             #delete link, copy back to og path
-            alt_path = os.path.abspath(game.junctionTarget)
-            og_path = os.path.abspath(os.path.join(game.library, game.name))
-            os.unlink(og_path)
-            subprocess.run(["robocopy", alt_path, og_path, "/E", "/MOVE", "/NJH", "/NJS"])
+            from_path = os.path.abspath(game.junctionTarget)
+            to_path = os.path.abspath(os.path.join(game.library, game.name))
+            os.unlink(to_path)
         elif game.isJunctionTarget:
             #delete link, copy back to og
-            alt_path = os.path.abspath(os.path.join(game.library, game.name))
-            og_path = os.path.abspath(game.originalPath)
-            os.unlink(og_path)
-            subprocess.run(["robocopy", alt_path, og_path, "/E", "/MOVE", "/NJH", "/NJS"])
+            from_path = os.path.abspath(os.path.join(game.library, game.name))
+            to_path = os.path.abspath(game.originalPath)
+            os.unlink(to_path)
         else:
             #copy to new path, create junction
-            og_path = os.path.abspath(os.path.join(self.master.selected_libraryFolder.path, game.name))
-            alt_path = os.path.abspath(os.path.join(self.master.get_selected_launcher_libraryFolders()[buttonindex].path, game.name))
-            print(og_path)
-            print(alt_path)
-            if debug: print(f"moving game {game.name} from {og_path} to {alt_path}")
-            #subprocess.run(["robocopy", og_path, alt_path, "/E", "/MOVE", "/NJH", "/NJS"]) #progress bekommen
+            from_path = os.path.abspath(os.path.join(self.master.selected_libraryFolder.path, game.name))
+            to_path = os.path.abspath(os.path.join(self.master.get_selected_launcher_libraryFolders()[buttonindex].path, game.name))
+        
+        if debug: print(f"moving game {game.name} from {from_path} to {to_path}")            
+        cur_val = 0
+        self.master.progress.config(value=cur_val)
+        files, folders = self.count_files_dirs(from_path) #vllt progress mit target folder size?
+        max_val = files + folders + 2
+        self.master.progress.config(maximum=max_val)
             
-            cur_val = 0
+        p = subprocess.Popen(["robocopy", from_path, to_path, "/E", "/MOVE", "/NJH", "/NJS", "/NP"], stdout = subprocess.PIPE, bufsize=1, universal_newlines=True)
+        while True:
+            data = p.stdout.readline()
+            if len(data) == 0: break
+            cur_val = cur_val + 1
+            if debug: print(f"status: {cur_val} / {max_val}")
             self.master.progress.config(value=cur_val)
-            files, folders = self.count_files_dirs(og_path) #vllt progress mit target folder size?
-            max_val = files + folders + 2
-            self.master.progress.config(maximum=max_val)
+            root.update_idletasks()
+
+        if not game.isJunction and not game.isJunctionTarget:
+            _winapi.CreateJunction(to_path, from_path)            
             
-            p = subprocess.Popen(["robocopy", og_path, alt_path, "/E", "/MOVE", "/NJH", "/NJS", "/NP"], stdout = subprocess.PIPE, bufsize=1, universal_newlines=True)
-            while True:
-                data = p.stdout.readline()
-                if len(data) == 0: break
-                cur_val = cur_val + 1
-                if debug: print(f"status: {cur_val} / {max_val}")
-                self.master.progress.config(value=cur_val)
-                root.update_idletasks()
-            if debug: print(f"mklink /j {os.path.join(alt_path, game.name)} {os.path.join(og_path, game.name)}")
-            _winapi.CreateJunction(alt_path, og_path)
-            
-        self.master.selected_libraryFolder.get_games()
-        self.master.get_selected_launcher_libraryFolders()[buttonindex].get_games()
-        #TODO
-        #reread games properly
-        #junction text nicht immer da
-        #robocopy progress
+        for libraryFolder in self.master.get_selected_launcher_libraryFolders():
+            libraryFolder.get_games()
         self.refresh()
 
     #https://stackoverflow.com/questions/16910330/return-total-number-of-files-in-directory-and-subdirectories
