@@ -1,10 +1,11 @@
 import tkinter as tk 
 from tkinter import ttk
 from tkinter import filedialog 
-from tkinter.scrolledtext import ScrolledText
 import game_mover
 import json
 import os
+import subprocess
+import _winapi
 
 config_json = "game_mover.json"
 debug = True
@@ -80,6 +81,9 @@ class MainFrame(tk.Frame):
         self.libview_frame = LibViewFrame(self)
         self.libview_frame.grid(column=0, row=1, sticky=("N", "W", "E", "S"), pady=10)
 
+        self.progress = ttk.Progressbar(self, orient="horizontal", mode="determinate")
+        self.progress.grid(column=0, row=2, sticky=("S", "W", "E"))
+
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight = 0)
         self.rowconfigure(1, weight = 1)
@@ -130,8 +134,7 @@ class MainFrame(tk.Frame):
     def save_config(self):
         self.config.save(self.launchers, self.selected_launcher.get())
 
-        pass
-        
+
 class LauncherFrame(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
@@ -181,6 +184,7 @@ class LauncherFrame(tk.Frame):
         self.master.libview_frame.refresh()
         self.master.save_config()
 
+
 class LibViewFrame(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
@@ -212,6 +216,7 @@ class LibViewFrame(tk.Frame):
             self.trees[-1].column("arrow", width=100, anchor="center")
             self.trees[-1].bind("<ButtonRelease-1>", lambda event, tree_id=i: self.on_selection(tree_id))
 
+            #first check all games to mark junction targets
             for game in self.library_dirs[i].games:
                 location_string = ""
                 if game.isJunction:
@@ -223,6 +228,7 @@ class LibViewFrame(tk.Frame):
                         except ValueError:
                             continue
             
+            #second build location_strings that point to targets and mark targets as JUNCTION, then add to tree
             for game in self.library_dirs[i].games:
                 location_string = ""
                 if game.isJunction:
@@ -252,10 +258,10 @@ class LibViewFrame(tk.Frame):
             self.del_buttons[-1].config(command=lambda button=self.del_buttons[-1]: self.on_del_button(button))
             self.del_buttons[-1].grid(column=j+1, row=2, sticky=("S", "E"))
 
-            self.columnconfigure([j], minsize=300, weight=1)#, pady=50)
-            self.columnconfigure([j+1], minsize=10, weight=0)#, pady=50)
-            self.rowconfigure([0, 2], weight=0, minsize=10)
-            self.rowconfigure([1], minsize=110, weight=1)
+            self.columnconfigure([j], minsize=300, weight=1)
+            self.columnconfigure([j+1], minsize=10, weight=0)
+        self.rowconfigure([0, 2], weight=0, minsize=10)
+        self.rowconfigure([1], minsize=110, weight=1)
 
     def build_location_string(self, junctionId, targetId, length):
         location_string = " "
@@ -323,9 +329,6 @@ class LibViewFrame(tk.Frame):
             idx = self.master.get_index_by_libraryFolder(ld)
             self.move_buttons[idx].config(text="Return here")
 
-
-        
-
     def on_del_button(self, button, event=None):
         buttonindex = int((button.grid_info()["column"]+1)/3-1)
         if debug: print("deleting libdir " + self.master.launchers[self.master.selected_launcher.get()].libraryFolders[buttonindex].path)
@@ -336,12 +339,66 @@ class LibViewFrame(tk.Frame):
     def on_move_button(self, button, event=None):
         buttonindex = int((button.grid_info()["column"]+2)/3-1)
         game = self.master.selected_game
-        og_path = self.master.selected_libraryFolder.path
-        alt_path = self.master.launchers[self.master.selected_launcher.get()].libraryFolders[buttonindex].path
-        if debug: print(f"moving game {game.name} from {og_path} to {alt_path}")
-        if debug: print(f"mklink /j {os.path.join(alt_path, game.name)} {os.path.join(og_path, game.name)}")
+        if game.isJunction:
+            #delete link, copy back to og path
+            alt_path = os.path.abspath(game.junctionTarget)
+            og_path = os.path.abspath(os.path.join(game.library, game.name))
+            os.unlink(og_path)
+            subprocess.run(["robocopy", alt_path, og_path, "/E", "/MOVE", "/NJH", "/NJS"])
+        elif game.isJunctionTarget:
+            #delete link, copy back to og
+            alt_path = os.path.abspath(os.path.join(game.library, game.name))
+            og_path = os.path.abspath(game.originalPath)
+            os.unlink(og_path)
+            subprocess.run(["robocopy", alt_path, og_path, "/E", "/MOVE", "/NJH", "/NJS"])
+        else:
+            #copy to new path, create junction
+            og_path = os.path.abspath(os.path.join(self.master.selected_libraryFolder.path, game.name))
+            alt_path = os.path.abspath(os.path.join(self.master.get_selected_launcher_libraryFolders()[buttonindex].path, game.name))
+            print(og_path)
+            print(alt_path)
+            if debug: print(f"moving game {game.name} from {og_path} to {alt_path}")
+            #subprocess.run(["robocopy", og_path, alt_path, "/E", "/MOVE", "/NJH", "/NJS"]) #progress bekommen
+            
+            cur_val = 0
+            self.master.progress.config(value=cur_val)
+            files, folders = self.count_files_dirs(og_path) #vllt progress mit target folder size?
+            max_val = files + folders + 2
+            self.master.progress.config(maximum=max_val)
+            
+            p = subprocess.Popen(["robocopy", og_path, alt_path, "/E", "/MOVE", "/NJH", "/NJS", "/NP"], stdout = subprocess.PIPE, bufsize=1, universal_newlines=True)
+            while True:
+                data = p.stdout.readline()
+                if len(data) == 0: break
+                cur_val = cur_val + 1
+                if debug: print(f"status: {cur_val} / {max_val}")
+                self.master.progress.config(value=cur_val)
+                root.update_idletasks()
+            if debug: print(f"mklink /j {os.path.join(alt_path, game.name)} {os.path.join(og_path, game.name)}")
+            _winapi.CreateJunction(alt_path, og_path)
+            
+        self.master.selected_libraryFolder.get_games()
+        self.master.get_selected_launcher_libraryFolders()[buttonindex].get_games()
         #TODO
+        #reread games properly
+        #junction text nicht immer da
+        #robocopy progress
+        self.refresh()
 
+    #https://stackoverflow.com/questions/16910330/return-total-number-of-files-in-directory-and-subdirectories
+    def count_files_dirs(self, dir_path):
+        folder_array = os.scandir(dir_path)
+        files = 0
+        folders = 0
+        for path in folder_array:
+            if path.is_file():
+                files += 1
+            elif path.is_dir():
+                folders += 1
+                file_count, folder_count = self.count_files_dirs(path)
+                files += file_count
+                folders += folder_count
+        return files, folders
 
 class LauncherDialog(tk.Toplevel):
     def __init__(self, parent):
@@ -364,6 +421,7 @@ class LauncherDialog(tk.Toplevel):
         self.grab_set()
         self.wait_window()
         return self.launcher_name.get()
+
 
 class FolderDialog(tk.Toplevel):
     def __init__(self, parent):
@@ -390,9 +448,6 @@ class FolderDialog(tk.Toplevel):
         self.grab_set()
         self.wait_window()
         return self.lib_folder.get()
-
-
-
 
 if __name__ == "__main__":
 

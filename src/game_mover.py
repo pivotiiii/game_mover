@@ -7,6 +7,14 @@
 import json
 import os
 
+def folder_size(path):
+        total = 0
+        for entry in os.scandir(path):
+            if entry.is_file():
+                total += entry.stat().st_size
+            elif entry.is_dir():
+                total += folder_size(entry.path)
+        return total
 
 class Launcher(object):
     def __init__(self, name):
@@ -39,20 +47,12 @@ class LibraryFolder(object):
                     if is_junction(full_dir):
                         self.games.append(GameFolder(item.name, self.path, 0, True, os.path.realpath(full_dir)))
                     else:
-                        self.games.append(GameFolder(item.name, self.path, self.folder_size(full_dir)))    
+                        self.games.append(GameFolder(item.name, self.path, folder_size(full_dir)))
         except OSError:
             print("error getting games, wrong path?")
             self.games = gamesBak
 
     #https://stackoverflow.com/questions/1392413/calculating-a-directorys-size-using-python
-    def folder_size(self, path):
-        total = 0
-        for entry in os.scandir(path):
-            if entry.is_file():
-                total += entry.stat().st_size
-            elif entry.is_dir():
-                total += self.folder_size(entry.path)
-        return total
 
 
 class GameFolder(object):
