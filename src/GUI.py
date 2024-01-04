@@ -78,13 +78,13 @@ class MainFrame(tk.Frame):
         
 
         self.launcher_frame = LauncherFrame(self)
-        self.launcher_frame.grid(column=0, row=0, sticky=("N", "W"), padx=5, pady=(10, 5))
+        self.launcher_frame.grid(column=0, row=0, sticky=("W"), padx=5, pady=(10, 5))
 
         self.libview_frame = LibViewFrame(self)
         self.libview_frame.grid(column=0, columnspan=3, row=1, sticky=("N", "W", "E", "S"), pady=5)
 
         self.progress = ttk.Progressbar(self, orient="horizontal", mode="determinate")
-        self.progress.grid(column=0, columnspan=3, row=2, sticky=("S", "W", "E"))
+        self.progress.grid(column=0, columnspan=3, row=2, sticky=("W", "E"))
 
         self.is_dark_theme = tk.BooleanVar() #read from config
         self.theme_label = ttk.Label(self, text="Dark Theme")
@@ -126,7 +126,7 @@ class MainFrame(tk.Frame):
     def recreate_libview_frame(self):
         self.libview_frame.destroy()
         self.libview_frame = LibViewFrame(self)
-        self.libview_frame.grid(column=0, row=1, sticky=("N", "W", "E", "S"), pady=5)
+        self.libview_frame.grid(column=0, columnspan=3, row=1, sticky=("N", "W", "E", "S"), pady=5)
     
     def get_selected_launcher(self):
         return self.launchers[self.selected_launcher.get()]
@@ -279,6 +279,8 @@ class LibViewFrame(tk.Frame):
         
         if debug: print(self.winfo_width())
         self.destroy_widgets()
+
+        #self.master.launcher_frame.grid_configure(column=len(self.library_dirs), row=0, sticky=)
 
         for i in range(0, len(self.library_dirs)):
             #first check all games to mark junction targets
