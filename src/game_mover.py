@@ -16,6 +16,7 @@ class LibraryFolder(object):
     def __init__(self, path):
         self.path = path
         self.games = []
+        self.game_names = []
         self.get_games()
 
     def __lt__(self, other):
@@ -23,11 +24,14 @@ class LibraryFolder(object):
 
     def get_games(self):
         gamesBak = self.games
+        game_namesBak = self.game_names
         try:
             self.games = []
+            self.game_names = []
             for item in os.scandir(self.path):
                 if item.is_dir():
                     full_dir = os.path.join(self.path, item.name)
+                    self.game_names.append(item.name)
                     if is_junction(full_dir):
                         self.games.append(GameFolder(item.name, self.path, 0, True, os.path.realpath(full_dir)))
                     else:
@@ -35,6 +39,7 @@ class LibraryFolder(object):
         except OSError:
             print("error getting games, wrong path?")
             self.games = gamesBak
+            self.game_names = game_namesBak
 
     #https://stackoverflow.com/questions/1392413/calculating-a-directorys-size-using-python
     def folder_size(self, path):
@@ -50,6 +55,7 @@ class GameFolder(object):
     def __init__(self, name, library, sizeInBytes = 0, isJunction = False, junctionTarget = None):
         self.name = name
         self.library = library
+        self.path = os.path.abspath(os.path.join(self.library, name))
         self.sizeInBytes = sizeInBytes
         self.size = self.get_readable_size()
         self.isJunction = isJunction
