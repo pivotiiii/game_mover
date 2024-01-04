@@ -8,8 +8,16 @@ import os
 import subprocess
 import _winapi
 
+#TODO
+#game folder in both zB steamworks shared
+#remove launcher
+#modify bg treeview
+#heading Game in tree
+#toggle theme button
+#always use json next to .py /.exe
+
 config_json = "game_mover.json"
-debug = True
+debug = False
 
 class Config(object):
     def __init__(self):
@@ -53,23 +61,24 @@ class Config(object):
 class MainFrame(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
-        self.config = Config()
-        self.launchers = self.config.launchers
+        if debug: self.config(bg = "red")
+        self.configObj = Config()
+        self.launchers = self.configObj.launchers
         self.launcher_names = self.get_launcher_names()
 
         self.selected_launcher = tk.StringVar()
-        if not self.config.last_selected in self.launcher_names:
+        if not self.configObj.last_selected in self.launcher_names:
             self.selected_launcher.set("")
         else:
-            self.selected_launcher.set(self.config.last_selected)
+            self.selected_launcher.set(self.configObj.last_selected)
         self.selected_game = None
         self.selected_libraryFolder = None
 
         self.launcher_frame = LauncherFrame(self)
-        self.launcher_frame.grid(column=0, row=0, sticky=("N", "W"), padx=5, pady=10)
+        self.launcher_frame.grid(column=0, row=0, sticky=("N", "W"), padx=5, pady=(10, 5))
 
         self.libview_frame = LibViewFrame(self)
-        self.libview_frame.grid(column=0, row=1, sticky=("N", "W", "E", "S"), pady=10)
+        self.libview_frame.grid(column=0, row=1, sticky=("N", "W", "E", "S"), pady=5)
 
         self.progress = ttk.Progressbar(self, orient="horizontal", mode="determinate")
         self.progress.grid(column=0, row=2, sticky=("S", "W", "E"))
@@ -78,6 +87,32 @@ class MainFrame(tk.Frame):
         self.rowconfigure(0, weight = 0)
         self.rowconfigure(1, weight = 1)
 
+    def disable_all_frames(self):
+        for frame in [self.launcher_frame, self.libview_frame]:
+            for child in frame.winfo_children():
+                wtype = child.winfo_class()
+                if wtype in ("Frame", "Labelframe", "TFrame", "TLabelframe"):
+                    continue
+                    #self.enable_children(child, enabled)
+                elif wtype in ["Treeview"]:
+                    child.state((tk.DISABLED, ))
+                    child.bind("<Button-1>", lambda e: "break")
+                    child.bind("<ButtonRelease-1>", lambda event: "break")
+                elif wtype in ["TScrollbar"]:
+                    continue
+                else:
+                    child.config(state = tk.DISABLED)
+
+    def enable_launcher_frame(self):
+        for child in self.launcher_frame.winfo_children():
+            child.config(state=tk.NORMAL)
+                    
+
+    def recreate_libview_frame(self):
+        self.libview_frame.destroy()
+        self.libview_frame = LibViewFrame(self)
+        self.libview_frame.grid(column=0, row=1, sticky=("N", "W", "E", "S"), pady=5)
+    
     def get_selected_launcher(self):
         return self.launchers[self.selected_launcher.get()]
     
@@ -122,12 +157,13 @@ class MainFrame(tk.Frame):
                 break
             
     def save_config(self):
-        self.config.save(self.launchers, self.selected_launcher.get())
+        self.configObj.save(self.launchers, self.selected_launcher.get())
 
 
 class LauncherFrame(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
+        if debug: self.config(bg = "green")
 
         self.selected_launcher_combobox = ttk.Combobox(self, textvariable=self.master.selected_launcher)
         self.selected_launcher_combobox.state(["readonly"])
@@ -135,10 +171,10 @@ class LauncherFrame(tk.Frame):
         self.selected_launcher_combobox.grid(column=0, row=0, sticky=("N", "W", "S"))
 
         self.add_launcher_button = ttk.Button(self, text="Add Launcher", command=self.on_add_launcher)
-        self.add_launcher_button.grid(column=1, row=0, sticky=("N", "W", "S"))
+        self.add_launcher_button.grid(column=1, row=0, sticky=("N", "W", "S"), padx=(2, 0))
 
         self.add_lib_button = ttk.Button(self, text="Add Folder", command=self.on_add_lib)
-        self.add_lib_button.grid(column=2, row=0, sticky=("N", "W", "S", "E"))
+        self.add_lib_button.grid(column=2, row=0, sticky=("N", "W", "S", "E"), padx=(2, 0))
 
         self.refresh()
 
@@ -162,32 +198,39 @@ class LauncherFrame(tk.Frame):
         elif launcher == "" or launcher == None:
             return
         elif launcher in self.master.get_launcher_names():
-            mb = messagebox.showerror("Error", f"{launcher} already exists.")
+            messagebox.showerror("Error", f"{launcher} already exists.")
             return
         
 
         self.master.launchers[launcher] = game_mover.Launcher(launcher)
         self.master.selected_launcher.set(launcher)
-        self.master.libview_frame.refresh()
+        self.master.libview_frame.recreate()
         self.master.save_config()
         self.refresh()
 
     def on_add_lib(self, event=None):
         #folder = FolderDialog(self).show()
         folder = filedialog.askdirectory()
+        for libraryFolder in self.master.get_selected_launcher_libraryFolders():
+            if os.path.abspath(folder) == os.path.abspath(libraryFolder.path):
+                messagebox.showerror("Error", f"Folder already added.")
+                return
         self.master.get_selected_launcher().add_library_folder(folder)
         self.master.libview_frame.refresh()
         self.master.save_config()
 
     def on_launcher_change(self, event=None):
         if debug: print("switched to " + self.master.selected_launcher.get())
-        self.master.libview_frame.refresh()
+        self.master.libview_frame.recreate()
+        self.master.focus_set()
         self.master.save_config()
+        
 
 
 class LibViewFrame(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
+        if debug: self.config(bg = "blue")
         self.labels = []
         self.trees = []
         self.scrollbars = []
@@ -195,6 +238,9 @@ class LibViewFrame(tk.Frame):
         self.del_buttons = []
         self.refresh()
         
+    def recreate(self):
+        self.master.recreate_libview_frame()
+    
     def refresh(self):
         try:
             self.library_dirs = self.master.get_selected_launcher_libraryFolders()
@@ -202,20 +248,10 @@ class LibViewFrame(tk.Frame):
             self.library_dirs = []
         if debug: print("libdirs for " + self.master.selected_launcher.get() + " are " + str([folder.path for folder in self.library_dirs]))
         
+        if debug: print(self.winfo_width())
         self.destroy_widgets()
 
         for i in range(0, len(self.library_dirs)):
-            j = (i + 1) * 3 - 2
-
-            self.labels.append(ttk.Label(self, text=self.library_dirs[i].path))
-            self.labels[-1].grid(column=j, row=0, sticky=("S", "W", "E"), padx=5)
-
-            self.trees.append(ttk.Treeview(self, selectmode="browse", columns=("size", "arrow")))
-            self.trees[-1].column("size", width=100, anchor="e")
-            self.trees[-1].heading("size", text="Size")
-            self.trees[-1].column("arrow", width=100, anchor="center")
-            self.trees[-1].bind("<ButtonRelease-1>", lambda event, tree_id=i: self.on_selection(tree_id))
-
             #first check all games to mark junction targets
             for game in self.library_dirs[i].games:
                 location_string = ""
@@ -227,7 +263,19 @@ class LibViewFrame(tk.Frame):
                                 self.master.set_game_as_junction_target(k, game)
                         except ValueError:
                             continue
-            
+
+        for i in range(0, len(self.library_dirs)):
+            j = (i + 1) * 3 - 2
+
+            self.labels.append(ttk.Label(self, text=self.library_dirs[i].path))
+            self.labels[-1].grid(column=j, row=0, sticky=("S", "W"), padx=5)
+
+            self.trees.append(ttk.Treeview(self, selectmode="browse", columns=("size", "arrow")))
+            self.trees[-1].column("size", width=100, anchor="e")
+            self.trees[-1].heading("size", text="Size")
+            self.trees[-1].column("arrow", width=100, anchor="center")
+            self.trees[-1].bind("<ButtonRelease-1>", lambda event, tree_id=i: self.on_selection(tree_id))
+
             #second build location_strings that point to targets and mark targets as JUNCTION, then add to tree
             for game in self.library_dirs[i].games:
                 location_string = ""
@@ -280,6 +328,8 @@ class LibViewFrame(tk.Frame):
                 junctionFound = True
                 if not targetFound:
                     arrow = uarrowright
+                elif targetFound and junctionFound:
+                    arrow = " "
             elif i == targetId:
                 location_string = location_string + ucross
                 targetFound = True
@@ -351,37 +401,43 @@ class LibViewFrame(tk.Frame):
             to_path = os.path.abspath(os.path.join(game.library, game.name))
             os.unlink(to_path)
         elif game.isJunctionTarget:
-            #delete link, copy back to og
             from_path = os.path.abspath(os.path.join(game.library, game.name))
-            to_path = os.path.abspath(game.originalPath)
-            os.unlink(to_path)
+            to_path = os.path.abspath(os.path.join(self.master.get_selected_launcher_libraryFolders()[buttonindex].path, game.name))
+            os.unlink(game.originalPath)
         else:
             #copy to new path, create junction
             from_path = os.path.abspath(os.path.join(self.master.selected_libraryFolder.path, game.name))
             to_path = os.path.abspath(os.path.join(self.master.get_selected_launcher_libraryFolders()[buttonindex].path, game.name))
         
-        if debug: print(f"moving game {game.name} from {from_path} to {to_path}")            
+        if debug: print(f"moving game {game.name} from {from_path} to {to_path}")
+        self.master.disable_all_frames()
+        self.move_folders(from_path, to_path)
+        self.master.enable_launcher_frame()
+
+        if not game.isJunction and not game.isJunctionTarget:
+            _winapi.CreateJunction(to_path, from_path)
+        elif game.isJunctionTarget and to_path != os.path.abspath(game.originalPath):
+            _winapi.CreateJunction(to_path, os.path.abspath(game.originalPath))
+            
+        for libraryFolder in self.master.get_selected_launcher_libraryFolders():
+            libraryFolder.get_games()
+        self.refresh()
+
+    def move_folders(self, from_path, to_path):
         cur_val = 0
         self.master.progress.config(value=cur_val)
         files, folders = self.count_files_dirs(from_path) #vllt progress mit target folder size?
         max_val = files + folders + 2
         self.master.progress.config(maximum=max_val)
-            
+
         p = subprocess.Popen(["robocopy", from_path, to_path, "/E", "/MOVE", "/NJH", "/NJS", "/NP"], stdout = subprocess.PIPE, bufsize=1, universal_newlines=True)
         while True:
             data = p.stdout.readline()
             if len(data) == 0: break
             cur_val = cur_val + 1
-            if debug: print(f"status: {cur_val} / {max_val}")
+            #if debug: print(f"status: {cur_val} / {max_val}")
             self.master.progress.config(value=cur_val)
-            root.update_idletasks()
-
-        if not game.isJunction and not game.isJunctionTarget:
-            _winapi.CreateJunction(to_path, from_path)            
-            
-        for libraryFolder in self.master.get_selected_launcher_libraryFolders():
-            libraryFolder.get_games()
-        self.refresh()
+            root.update()#_idletasks()
 
     #https://stackoverflow.com/questions/16910330/return-total-number-of-files-in-directory-and-subdirectories
     def count_files_dirs(self, dir_path):
@@ -455,12 +511,25 @@ class FolderDialog(tk.Toplevel):
         self.wait_window()
         return self.lib_folder.get()
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     root = tk.Tk()
     root.title("Game Mover")
     root.columnconfigure(0, weight=1)
     root.rowconfigure(0, weight=1)
     #MainFrame(root).grid(column=0, row=0, sticky=("N", "S", "E", "W"))
-    MainFrame(root).pack(fill="both", expand=True)
+    mf = MainFrame(root)
+    mf.pack(fill="both", expand=True)
+    #if debug: mf.config(bg = "yellow")
+
+    #root.tk.call("source", "src/themes/Forest-ttk-theme-1.0/forest-dark.tcl")
+    #style = ttk.Style(root)
+    #style.theme_use("forest-dark")
+
+    #root.tk.call("source", "src/themes/Azure-ttk-theme-2.1.0/azure.tcl")
+    #root.tk.call("set_theme", "dark")
+
+    import sv_ttk
+    sv_ttk.set_theme("dark")
+        
     root.mainloop()
