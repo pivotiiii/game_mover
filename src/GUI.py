@@ -74,18 +74,33 @@ class MainFrame(tk.Frame):
         self.selected_game = None
         self.selected_libraryFolder = None
 
+        
+        
+
         self.launcher_frame = LauncherFrame(self)
         self.launcher_frame.grid(column=0, row=0, sticky=("N", "W"), padx=5, pady=(10, 5))
 
         self.libview_frame = LibViewFrame(self)
-        self.libview_frame.grid(column=0, row=1, sticky=("N", "W", "E", "S"), pady=5)
+        self.libview_frame.grid(column=0, columnspan=3, row=1, sticky=("N", "W", "E", "S"), pady=5)
 
         self.progress = ttk.Progressbar(self, orient="horizontal", mode="determinate")
-        self.progress.grid(column=0, row=2, sticky=("S", "W", "E"))
+        self.progress.grid(column=0, columnspan=3, row=2, sticky=("S", "W", "E"))
+
+        self.is_dark_theme = tk.BooleanVar() #read from config
+        self.theme_label = ttk.Label(self, text="Dark Theme")
+        self.theme_label.grid(column=1, row=0, sticky=("E"))
+        self.theme_switch = ttk.Checkbutton(self, style="Switch.TCheckbutton", variable=self.is_dark_theme, command=self.set_theme)
+        self.theme_switch.grid(column=2, row=0, sticky=("E"))
 
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight = 0)
         self.rowconfigure(1, weight = 1)
+
+    def set_theme(self):
+        if self.is_dark_theme.get():
+            sv_ttk.set_theme("dark")
+        else:
+            sv_ttk.set_theme("light")
 
     def disable_all_frames(self):
         for frame in [self.launcher_frame, self.libview_frame]:
@@ -165,16 +180,20 @@ class LauncherFrame(tk.Frame):
         tk.Frame.__init__(self, parent)
         if debug: self.config(bg = "green")
 
-        self.selected_launcher_combobox = ttk.Combobox(self, textvariable=self.master.selected_launcher)
-        self.selected_launcher_combobox.state(["readonly"])
-        self.selected_launcher_combobox.bind("<<ComboboxSelected>>", self.on_launcher_change)
-        self.selected_launcher_combobox.grid(column=0, row=0, sticky=("N", "W", "S"))
+        #self.selected_launcher_combobox = ttk.Combobox(self, textvariable=self.master.selected_launcher)
+        #self.selected_launcher_combobox.state(["readonly"])
+        #self.selected_launcher_combobox.bind("<<ComboboxSelected>>", self.on_launcher_change)
+        #self.selected_launcher_combobox.grid(column=0, row=0, sticky=("N", "W", "S"))
+        self.selected_launcher_optionmenu = ttk.OptionMenu(self, variable=self.master.selected_launcher, direction="below", command=self.on_launcher_change)
+        self.selected_launcher_optionmenu.grid(column=0, row=0, sticky=("nws"))
 
         self.add_launcher_button = ttk.Button(self, text="Add Launcher", command=self.on_add_launcher)
-        self.add_launcher_button.grid(column=1, row=0, sticky=("N", "W", "S"), padx=(2, 0))
+        self.add_launcher_button.grid(column=1, row=0, sticky=("W"), padx=(2, 0))
 
         self.add_lib_button = ttk.Button(self, text="Add Folder", command=self.on_add_lib)
-        self.add_lib_button.grid(column=2, row=0, sticky=("N", "W", "S", "E"), padx=(2, 0))
+        self.add_lib_button.grid(column=2, row=0, sticky=("W"), padx=(2, 0))
+
+        
 
         self.refresh()
 
@@ -182,8 +201,17 @@ class LauncherFrame(tk.Frame):
         names = self.master.get_launcher_names()
         names.sort()
         if debug: print(names)
-        self.selected_launcher_combobox["values"] = names
-        self.selected_launcher_combobox.set(self.master.get_selected_launcher_name())
+        #self.selected_launcher_combobox["values"] = names
+        #self.selected_launcher_combobox.set(self.master.get_selected_launcher_name())
+        #names = [""].append(names)
+        menu = self.selected_launcher_optionmenu["menu"]
+        menu.delete(0, "end")
+        for launcher in names:
+            menu.add_command(label=launcher, command=lambda value=launcher: self.on_launcher_change(value))
+        
+        self.selected_launcher_optionmenu.config(width=-10)
+        #self.selected_launcher_optionmenu["values"] = names
+        #self.selected_launcher_optionmenu.selection_own()
 
     def on_add_launcher(self, event=None):
         launcher = LauncherDialog(self).show()
@@ -219,7 +247,8 @@ class LauncherFrame(tk.Frame):
         self.master.libview_frame.refresh()
         self.master.save_config()
 
-    def on_launcher_change(self, event=None):
+    def on_launcher_change(self, name, event=None):
+        self.master.selected_launcher.set(name)
         if debug: print("switched to " + self.master.selected_launcher.get())
         self.master.libview_frame.recreate()
         self.master.focus_set()
