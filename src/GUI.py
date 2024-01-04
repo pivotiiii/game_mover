@@ -307,6 +307,7 @@ class LibViewFrame(tk.Frame):
             self.labels[-1].grid(column=j, row=0, sticky=("W"), padx=5)
 
             self.trees.append(ttk.Treeview(self, selectmode="browse", columns=("size", "arrow")))
+            self.trees[-1].heading('#0', text="Game")
             self.trees[-1].column("size", width=100, anchor="e")
             self.trees[-1].heading("size", text="Size")
             self.trees[-1].column("arrow", width=100, anchor="center")
@@ -394,7 +395,11 @@ class LibViewFrame(tk.Frame):
         self.del_buttons = []
     
     def on_selection(self, tree_id, event=None):
-        selected_item = self.trees[tree_id].selection()[0]
+        try:
+            selected_item = self.trees[tree_id].selection()[0]
+        except IndexError:
+            if debug: print("selected heading")
+            return
         selected_path = config.selected_launcher.libraryFolders[tree_id].path
         if debug: print(f"selected {selected_item} from tree {tree_id} with path {selected_path}")   
 
