@@ -23,14 +23,16 @@ class Config(object):
     def __init__(self):
         self.config_json = config_json
         self.config = self.read_config_file()
-        self.launchers = dict()
 
-        for launcher in list(self.config["launchers"].keys()):
-            self.launchers[launcher] = game_mover.Launcher(launcher)
-        for launcher in self.launchers:
-            for folder in self.config["launchers"][launcher]["libraryFolders"]:
-                self.launchers[launcher].add_library_folder(folder)
-        self.last_selected = self.config["last_selected"]
+        self.launchers = self._setup_launchers()
+        
+        if self.config["last_selected"] in self.get_launcher_names():
+            self.selected_launcher = self.launchers[self.config["last_selected"]]
+        else:
+            self.selected_launcher = None
+
+        self.selected_game = None
+        self.selected_libraryFolder = None
 
     def read_config_file(self):
         try:
@@ -46,8 +48,9 @@ class Config(object):
                 if debug: print("created json")
                 return d
 
-    
-    def save(self, launcher_dict, last_selected):
+    def save(self, launcher_dict = None, last_selected = None):
+        if not launcher_dict: launcher_dict = self.launchers
+        if not last_selected: last_selected = self.selected_launcher
         self.config["last_selected"] = last_selected
         self.config["launchers"] = dict()
         for item in launcher_dict:
@@ -57,6 +60,55 @@ class Config(object):
                 self.config["launchers"][item]["libraryFolders"].append(folder.path)
         with open(self.config_json, "w") as file:
             json.dump(self.config, file, indent=4)
+
+    def _setup_launchers(self) -> dict:
+        launchers = dict()
+        for launcher in list(self.config["launchers"].keys()):
+            launchers[launcher] = game_mover.Launcher(launcher)
+        for launcher in launchers:
+            for folder in self.config["launchers"][launcher]["libraryFolders"]:
+                launchers[launcher].add_library_folder(folder)
+        return launchers
+
+    def get_launcher_names(self) -> list(str):
+        return [launcher for launcher in self.launchers.keys()]
+    
+    def get_selected_launcher(self) -> game_mover.Launcher:
+        return self.selected_launcher
+    
+    def gsl(self) -> game_mover.Launcher:
+        return self.selected_launcher
+    
+    def get_library_folder_by_path(self, path: str) -> game_mover.LibraryFolder:
+        lfs = self.selected_launcher.libraryFolders
+        for i in range(0, len(lfs)):
+            try:
+                if os.path.abspath(lfs[i].path) == os.path.commonpath([lfs[i].path, path]):
+                    return lfs[i]
+            except ValueError:
+                continue
+        return None
+    
+    def get_library_folder_index_by_library_folder(self, library_folder: game_mover.LibraryFolder) -> int:
+        lfs = self.selected_launcher.libraryFolders
+        return lfs.index(library_folder)
+    
+    def set_selected_libraryFolder_by_index(self, index: int) -> None:
+        self.selected_libraryFolder = self.selected_launcher.libraryFolders[index]
+
+    def set_selected_game_by_string(self, game_string: str) -> None:
+        self.selected_game = [game for game in self.selected_libraryFolder.games if game.name == game_string][0]
+
+    def set_game_as_junction_target(self, library_folder_index: int, game: game_mover.GameFolder):
+        games = self.selected_launcher.libraryFolders[library_folder_index].games
+        for i in range(0, len(games)):
+            if games[i].name == game.name:
+                self.selected_launcher.libraryFolders[library_folder_index].games[i].isJunctionTarget = True
+                self.selected_launcher.libraryFolders[library_folder_index].games[i].originalPath = os.path.abspath(os.path.join(game.library, game.name))
+                break
+
+    
+
 
 class MainFrame(tk.Frame):
     def __init__(self, parent):
@@ -106,14 +158,13 @@ class MainFrame(tk.Frame):
     def enable_launcher_frame(self):
         for child in self.launcher_frame.winfo_children():
             child.config(state=tk.NORMAL)
-                    
 
     def recreate_libview_frame(self):
         self.libview_frame.destroy()
         self.libview_frame = LibViewFrame(self)
         self.libview_frame.grid(column=0, row=1, sticky=("N", "W", "E", "S"), pady=5)
     
-    def get_selected_launcher(self):
+    def get_selected_launcher(self): 
         return self.launchers[self.selected_launcher.get()]
     
     def get_selected_launcher_name(self):
