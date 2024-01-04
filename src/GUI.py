@@ -7,13 +7,12 @@ import json
 import os
 import subprocess
 import _winapi
+import sv_ttk
 
 #TODO
 #game folder in both zB steamworks shared
 #remove launcher
-#modify bg treeview
 #heading Game in tree
-#toggle theme button
 #always use json next to .py /.exe
 
 config_json = "game_mover.json"
@@ -23,6 +22,11 @@ class Config(object):
     def __init__(self):
         self.config_json = config_json
         self.config = self.read_config_file()
+
+        try:
+            self.is_dark_mode = self.config["dark_mode"]
+        except KeyError:
+            self.is_dark_mode = False
 
         self.launchers = self._setup_launchers()
         self.mark_junction_targets()
@@ -43,6 +47,7 @@ class Config(object):
         except (FileNotFoundError, json.decoder.JSONDecodeError):
             with open(config_json, "w") as file:
                 d = dict()
+                d["dark_mode"] = False
                 d["last_selected"] = ""
                 d["launchers"] = dict()
                 json.dump(d, file)
@@ -53,6 +58,7 @@ class Config(object):
         if not launcher_dict: launcher_dict = self.launchers
         if not last_selected: last_selected = self.selected_launcher.name
         config = dict()
+        config["dark_mode"] = self.is_dark_mode
         config["last_selected"] = last_selected
         config["launchers"] = dict()
         for item in launcher_dict:
@@ -143,21 +149,26 @@ class MainFrame(tk.Frame):
         self.progress = ttk.Progressbar(self, orient="horizontal", mode="determinate")
         self.progress.grid(column=0, columnspan=3, row=2, sticky=("W", "E"))
 
-        self.is_dark_theme = tk.BooleanVar() #read from config
-        self.theme_label = ttk.Label(self, text="Dark Theme")
+        self.is_dark_mode = tk.BooleanVar() #read from config
+        self.is_dark_mode.set(config.is_dark_mode)
+        self.theme_label = ttk.Label(self, text="Dark Mode")
         self.theme_label.grid(column=1, row=0, sticky=("E"))
-        self.theme_switch = ttk.Checkbutton(self, style="Switch.TCheckbutton", variable=self.is_dark_theme, command=self.set_theme)
+        self.theme_switch = ttk.Checkbutton(self, style="Switch.TCheckbutton", variable=self.is_dark_mode, command=self.set_theme)
         self.theme_switch.grid(column=2, row=0, sticky=("E"))
+        self.set_theme()
 
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight = 0)
         self.rowconfigure(1, weight = 1)
 
     def set_theme(self):
-        if self.is_dark_theme.get():
+        if self.is_dark_mode.get():
             sv_ttk.set_theme("dark")
+            config.is_dark_mode = True
         else:
             sv_ttk.set_theme("light")
+            config.is_dark_mode = False
+        config.save()
             
     def disable_all_frames(self):
         for frame in [self.launcher_frame, self.libview_frame]:
@@ -520,6 +531,4 @@ if __name__ == "__main__":
     root.rowconfigure(0, weight=1)
     #MainFrame(root).grid(column=0, row=0, sticky=("N", "S", "E", "W"))
     MainFrame(root).pack(fill="both", expand=True)
-    import sv_ttk
-    sv_ttk.set_theme("dark")
     root.mainloop()
