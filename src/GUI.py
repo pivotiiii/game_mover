@@ -155,7 +155,10 @@ class MainFrame(tk.Frame):
         self.theme_label.grid(column=1, row=0, sticky=("E"))
         self.theme_switch = ttk.Checkbutton(self, style="Switch.TCheckbutton", variable=self.is_dark_mode, command=self.set_theme)
         self.theme_switch.grid(column=2, row=0, sticky=("E"))
-        self.set_theme()
+        try:
+            self.set_theme()
+        except AttributeError:
+            pass
 
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight = 0)
@@ -211,6 +214,8 @@ class LauncherFrame(tk.Frame):
         self.selected_launcher_optionmenu.grid(column=0, row=0, sticky=("nws"))
 
         self.add_launcher_button = ttk.Button(self, text="Add Launcher", command=self.on_add_launcher)
+        if len(config.get_launcher_names()) == 0:
+            self.add_launcher_button.configure(style="Accent.TButton")
         self.add_launcher_button.grid(column=1, row=0, sticky=("W"), padx=(2, 0))
 
         self.add_lib_button = ttk.Button(self, text="Add Folder", command=self.on_add_lib)
@@ -250,7 +255,10 @@ class LauncherFrame(tk.Frame):
         config.launchers[launcher_name] = game_mover.Launcher(launcher_name)
         config.set_selected_launcher_by_name(launcher_name)
         self.selected_launcher_cb.set(launcher_name)
+        self.add_launcher_button.configure(style="TButton")
+        self.add_lib_button.configure(style="Accent.TButton")
         self.master.libview_frame.recreate()
+        root.focus_set()
         self.refresh()
         config.save()
 
@@ -261,7 +269,9 @@ class LauncherFrame(tk.Frame):
                 messagebox.showerror("Error", f"Folder already added.")
                 return
         config.selected_launcher.add_library_folder(folder)
+        self.add_lib_button.configure(style="TButton")
         self.master.libview_frame.refresh()
+        root.focus_set()
         config.save()
 
     def on_launcher_change(self, name, event=None):
@@ -269,7 +279,7 @@ class LauncherFrame(tk.Frame):
         self.selected_launcher_cb.set(name)
         if debug: print("switched to " + config.selected_launcher)
         self.master.libview_frame.recreate()
-        self.master.focus_set()
+        root.focus_set()
         config.save()
         
 
