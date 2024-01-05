@@ -148,8 +148,13 @@ class MainFrame(tk.Frame):
         self.libview_frame = LibViewFrame(self)
         self.libview_frame.grid(column=0, columnspan=3, row=1, sticky=("N", "W", "E", "S"), padx=(5, 5), pady=(10, 0))
 
-        self.progress = ttk.Progressbar(self, orient="horizontal", mode="determinate")
-        self.progress.grid(column=0, columnspan=3, row=2, sticky=("W", "E"))
+        self.progress_frame = ttk.Frame(self)
+        self.progress_frame.config(style='Card.TFrame', padding=(6, 6, 7, 7))
+        self.progress_frame.grid(column=0, columnspan=3, row=2, sticky=("W", "E"), padx=(5, 5), pady=(10, 5))
+        self.progress_frame.columnconfigure(0, weight=1)
+        self.progress = ttk.Progressbar(self.progress_frame, orient="horizontal", mode="determinate")
+        self.progress.grid(column=0, row=0, sticky=("W", "E"))
+        #self.progress.grid(column=0, columnspan=3, row=2, sticky=("W", "E"))
 
         self.is_dark_mode = tk.BooleanVar() #read from config
         self.is_dark_mode.set(config.is_dark_mode)
@@ -198,13 +203,13 @@ class MainFrame(tk.Frame):
     def recreate_libview_frame(self):
         self.libview_frame.destroy()
         self.libview_frame = LibViewFrame(self)
-        self.libview_frame.grid(column=0, columnspan=3, row=1, sticky=("N", "W", "E", "S"), pady=5)
+        self.libview_frame.grid(column=0, columnspan=3, row=1, sticky=("N", "W", "E", "S"), padx=(5, 5), pady=(10, 0))
 
 
 class LauncherFrame(ttk.Frame):
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent)
-        self.config(style='Card.TFrame', padding=(5, 6, 7, 8))
+        self.config(style='Card.TFrame', padding=(6, 6, 7, 7))
         if debug: self.config(bg = "green")
 
         self.selected_launcher_cb = tk.StringVar()
@@ -213,8 +218,15 @@ class LauncherFrame(ttk.Frame):
         except AttributeError:
             self.selected_launcher_cb.set("")
 
-        self.selected_launcher_optionmenu = ttk.OptionMenu(self, variable=self.selected_launcher_cb, direction="below", command=self.on_launcher_change)
-        self.selected_launcher_optionmenu.grid(column=0, row=0, sticky=("nws"))
+        self.selected_launcher_combobox = ttk.Combobox(self, textvariable=self.selected_launcher_cb)
+        self.selected_launcher_combobox.state(["readonly"])
+        self.selected_launcher_combobox.bind("<<ComboboxSelected>>", self.on_launcher_change)
+        self.selected_launcher_combobox.grid(column=0, row=0, sticky=("N", "W", "S"))
+        
+    
+
+        #self.selected_launcher_optionmenu = ttk.OptionMenu(self, variable=self.selected_launcher_cb, direction="below", command=self.on_launcher_change)
+        #self.selected_launcher_optionmenu.grid(column=0, row=0, sticky=("nws"))
 
         self.add_launcher_button = ttk.Button(self, text="Add Launcher", command=self.on_add_launcher, width=15)
         if len(config.get_launcher_names()) == 0:
@@ -238,11 +250,11 @@ class LauncherFrame(ttk.Frame):
         names = config.get_launcher_names()
         names.sort()
         if debug: print(names)
-        menu = self.selected_launcher_optionmenu["menu"]
-        menu.delete(0, "end")
-        for launcher_name in names:
-            menu.add_command(label=launcher_name, command=lambda value=launcher_name: self.on_launcher_change(value))
-        self.selected_launcher_optionmenu.config(width=-15)
+        self.selected_launcher_combobox["values"] = names
+        try:
+            self.selected_launcher_combobox.set(config.selected_launcher.name)
+        except AttributeError:
+            self.selected_launcher_combobox.set("")
 
     def on_add_launcher(self, event=None):
         launcher_name = LauncherDialog(self).show()
@@ -300,15 +312,16 @@ class LauncherFrame(ttk.Frame):
         root.focus_set()
         config.save()
 
-    def on_launcher_change(self, name, event=None):
+    def on_launcher_change(self, event=None):
+        name = self.selected_launcher_cb.get()
         config.set_selected_launcher_by_name(name)
-        self.selected_launcher_cb.set(name)
         if len(config.selected_launcher.libraryFolders) == 0:
             self.add_lib_button.configure(style="Accent.TButton")
         else:
             self.add_lib_button.configure(style="TButton")
         if debug: print("switched to " + config.selected_launcher)
         self.master.libview_frame.recreate()
+        self.selected_launcher_combobox.select_clear()
         root.focus_set()
         config.save()
         
@@ -317,7 +330,7 @@ class LauncherFrame(ttk.Frame):
 class LibViewFrame(ttk.Frame):
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent)
-        self.config(style='Card.TFrame', padding=(5, 6, 7, 8))
+        self.config(style='Card.TFrame', padding=(6, 6, 7, 7))
         if debug: self.config(bg = "blue")
         self.labels = []
         self.trees = []
@@ -345,7 +358,7 @@ class LibViewFrame(ttk.Frame):
             j = (i + 1) * 3 - 2
 
             self.labels.append(ttk.Label(self, text=lfs[i].path))
-            self.labels[-1].grid(column=j, row=0, sticky=("W"), padx=5)
+            self.labels[-1].grid(column=j, row=0, sticky=("W"), padx=5, pady=(0, 5))
 
             self.trees.append(ttk.Treeview(self, selectmode="browse", columns=("size", "arrow")))
             self.trees[-1].heading('#0', text="Game")
@@ -372,19 +385,20 @@ class LibViewFrame(ttk.Frame):
             self.trees[-1].grid(column=j, columnspan=2, row=1, sticky=("N", "W", "E", "S"), padx=(3, 0))
             
             self.scrollbars.append(ttk.Scrollbar(self, orient="vertical", command=self.trees[-1].yview))
-            self.scrollbars[-1].grid(column=j+2, row=1, sticky=("N", "S", "W"), padx=(0, 3))
+            self.scrollbars[-1].grid(column=j+2, row=1, sticky=("N", "S", "W"), padx=(0, 5))
             self.trees[-1]["yscrollcommand"] = self.scrollbars[-1].set
 
             self.move_buttons.append(ttk.Button(self, text="Move here"))
             self.move_buttons[-1].config(state="disabled", command=lambda button=self.move_buttons[-1]: self.on_move_button(button))
-            self.move_buttons[-1].grid(column=j, row=2, sticky=("W", "E"), padx=5, pady=5)
+            self.move_buttons[-1].grid(column=j, row=2, sticky=("W", "E"), padx=(3, 5), pady=(5, 0))
 
             self.del_buttons.append(ttk.Button(self, text="X", width=2))
             self.del_buttons[-1].config(command=lambda button=self.del_buttons[-1]: self.on_del_button(button))
-            self.del_buttons[-1].grid(column=j+1, row=2, sticky=("E"), padx=(0, 5), pady=5)
+            self.del_buttons[-1].grid(column=j+1, row=2, sticky=("E"), padx=(0, 0), pady=(5, 0))
 
             self.columnconfigure([j], minsize=300, weight=1)
             self.columnconfigure([j+1], minsize=10, weight=0)
+        if len(self.scrollbars) > 0: self.scrollbars[-1].grid_configure(padx=0)
         self.rowconfigure([0, 2], weight=0, minsize=10)
         self.rowconfigure([1], minsize=110, weight=1)
 
@@ -455,17 +469,21 @@ class LibViewFrame(ttk.Frame):
             for button in self.move_buttons:
                 button.config(state="disabled")
                 button.config(text="Move here")
+                button.config(style="TButton")
             self.move_buttons[tree_id].config(state="normal")
             self.move_buttons[tree_id].config(text="Return here")
+            self.move_buttons[tree_id].config(style="Accent.TButton")
         else:
             for button in self.move_buttons:
                 button.config(state="normal")
                 button.config(text="Move here")
+                button.config(style="TButton")
             self.move_buttons[tree_id].config(state="disabled")
         if config.selected_game.isJunctionTarget:
             lf = config.get_library_folder_by_path(config.selected_game.originalPath)
             index = config.get_library_folder_index_by_library_folder(lf)
             self.move_buttons[index].config(text="Return here")
+            self.move_buttons[index].config(style="Accent.TButton")
 
     def on_del_button(self, button, event=None):
         buttonindex = int((button.grid_info()["column"]+1)/3-1)
@@ -580,7 +598,8 @@ if __name__ == "__main__":
     root.rowconfigure(0, weight=1)
     #MainFrame(root).grid(column=0, row=0, sticky=("N", "S", "E", "W"))
     mf = MainFrame(root)
-    mf.pack(fill="both", expand=True)
+    #mf.pack(fill="both", expand=True)
+    mf.grid(column=0, row=0, sticky=("N", "S", "E", "W"))
     icon = tk.PhotoImage(file=os.path.join(in_exe_path, "data", "icon.png"))
     root.wm_iconphoto(True, icon)
     root.update()
