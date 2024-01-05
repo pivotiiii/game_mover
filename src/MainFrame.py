@@ -6,7 +6,7 @@ from LibViewFrame import LibViewFrame
 import Globals as g
 
 class MainFrame(tk.Frame):
-    def __init__(self, parent, debug = False):
+    def __init__(self, parent):
         tk.Frame.__init__(self, parent)
 
         self.launcher_frame = LauncherFrame(self)

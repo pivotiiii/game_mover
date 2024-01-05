@@ -81,16 +81,3 @@ def is_junction(path):
         return bool(os.readlink(path))
     except OSError:
         return False
-
-if __name__ == "__main__":
-    steam1 = Launcher("steam")
-    steam1.add_library_folder("S:\Steam\steamapps\common")
-    steam1.add_library_folder("T:\Steam\steamapps\common")
-    for game in steam1.libraryFolders[0].games:
-        if game.isjunction:
-            print(game.name + " --> " + game.junctionTarget)
-        else:
-            print(game.name)
-    for x in steam1.libraryFolders:
-        print(x.path)
-

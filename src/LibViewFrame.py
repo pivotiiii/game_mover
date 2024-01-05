@@ -14,6 +14,7 @@ class LibViewFrame(ttk.Frame):
         self.scrollbars = []
         self.move_buttons = []
         self.del_buttons = []
+        self.undeletable_trees = []
         self.refresh()
         
     def recreate(self):
@@ -53,6 +54,8 @@ class LibViewFrame(ttk.Frame):
                     max_nr_games = nr_games
                 location_string = ""
                 if game.isJunction:
+                    if i not in self.undeletable_trees:
+                        self.undeletable_trees.append(i)
                     location_string = str(game.junctionTarget)
                     for k in range(0, len(lfs)):
                         try:
@@ -64,6 +67,8 @@ class LibViewFrame(ttk.Frame):
                             continue
                 elif game.isJunctionTarget:
                     location_string = "JUNCTION"
+                    if i not in self.undeletable_trees:
+                        self.undeletable_trees.append(i)
                 self.trees[-1].insert("", "end", game.name, text=game.name, values=(game.size, location_string))
 
             self.trees[-1].config(height=min(15, max_nr_games))
@@ -74,12 +79,14 @@ class LibViewFrame(ttk.Frame):
             self.trees[-1]["yscrollcommand"] = self.scrollbars[-1].set
 
             self.move_buttons.append(ttk.Button(self, text="Move here"))
-            self.move_buttons[-1].config(state="disabled", command=lambda button=self.move_buttons[-1]: self.on_move_button(button))
+            self.move_buttons[-1].config(state="disabled", command=lambda buttonindex=i: self.on_move_button(buttonindex))
             self.move_buttons[-1].grid(column=j, row=2, sticky=("W", "E"), padx=(3, 5), pady=(5, 0))
 
-            self.del_buttons.append(ttk.Button(self, text="X", width=2))
-            self.del_buttons[-1].config(command=lambda button=self.del_buttons[-1]: self.on_del_button(button))
+            self.del_buttons.append(ttk.Button(self, text="\u26cc", width=2))
+            self.del_buttons[-1].config(command=lambda buttonindex=i: self.on_del_button(buttonindex))
             self.del_buttons[-1].grid(column=j+1, row=2, sticky=("E"), padx=(0, 0), pady=(5, 0))
+            if (len(self.del_buttons) - 1) in self.undeletable_trees:
+                self.del_buttons[-1].config(state="disabled")
 
             self.columnconfigure([j], minsize=0, weight=1) #trees
             self.columnconfigure([j+1], minsize=0, weight=0) #scrollbars
@@ -142,51 +149,46 @@ class LibViewFrame(ttk.Frame):
         for button in self.del_buttons:
             button.destroy()
         self.del_buttons = []
+        self.undeletable_trees = []
     
     def on_selection(self, tree_id, event=None):
+        #try except to catch selections of header
         try:
             selected_item = self.trees[tree_id].selection()[0]
         except IndexError:
             return
-        selected_path = g.config.selected_launcher.libraryFolders[tree_id].path
-        if g.debug: print(f"selected '{selected_item}' from tree '{tree_id}' with path '{selected_path}'")   
 
+        #deselect other trees
         for i in range(0, len(self.trees)):
             if i == tree_id: continue
             self.trees[i].selection_set([])
-            
-        g.config.set_selected_libraryFolder_by_index(tree_id)
-        g.config.set_selected_game_by_string(selected_item)          
 
+        #save selected folder and game to config
+        g.config.set_selected_libraryFolder_by_index(tree_id)
+        g.config.set_selected_game_by_string(selected_item)
+
+        #apply button settings
         if g.config.selected_game.isJunction:
             for button in self.move_buttons:
-                button.config(state="disabled")
-                button.config(text="Move here")
-                button.config(style="TButton")
-            self.move_buttons[tree_id].config(state="normal")
-            self.move_buttons[tree_id].config(text="Return here")
-            self.move_buttons[tree_id].config(style="Accent.TButton")
+                button.config(state="disabled", text="Move here", style="TButton")
+            self.move_buttons[tree_id].config(state="normal", text="Return here", style="Accent.TButton")
         else:
             for button in self.move_buttons:
-                button.config(state="normal")
-                button.config(text="Move here")
-                button.config(style="TButton")
+                button.config(state="normal", text="Move here", style="TButton")
             self.move_buttons[tree_id].config(state="disabled")
+
         if g.config.selected_game.isJunctionTarget:
             lf = g.config.get_library_folder_by_path(g.config.selected_game.originalPath)
             index = g.config.get_library_folder_index_by_library_folder(lf)
-            self.move_buttons[index].config(text="Return here")
-            self.move_buttons[index].config(style="Accent.TButton")
+            self.move_buttons[index].config(text="Return here", style="Accent.TButton")
 
-    def on_del_button(self, button, event=None):
-        buttonindex = int((button.grid_info()["column"]+1)/3-1)
+    def on_del_button(self, buttonindex, event=None):
         if g.debug: print(f"deleting libdir '{g.config.selected_launcher.libraryFolders[buttonindex].path}'")
         g.config.selected_launcher.libraryFolders.pop(buttonindex)
         self.master.recreate_libview_frame()
         g.config.save()
 
-    def on_move_button(self, button, event=None):
-        buttonindex = int((button.grid_info()["column"]+2)/3-1)
+    def on_move_button(self, buttonindex, event=None):
         game = g.config.selected_game
         if game.isJunction:
             #delete link, copy back to og path
@@ -194,6 +196,7 @@ class LibViewFrame(ttk.Frame):
             to_path = os.path.abspath(os.path.join(game.library, game.name))
             os.unlink(to_path)
         elif game.isJunctionTarget:
+            #delete link at og path, copy back to og path
             from_path = os.path.abspath(os.path.join(game.library, game.name))
             to_path = os.path.abspath(os.path.join(g.config.selected_launcher.libraryFolders[buttonindex].path, game.name))
             os.unlink(game.originalPath)
@@ -205,12 +208,13 @@ class LibViewFrame(ttk.Frame):
         if g.debug: print(f"moving game '{game.name}' from '{from_path}' to '{to_path}'")
         self.master.disable_all_frames()
         self.move_folders(from_path, to_path)
+        if g.debug: print(f"finished moving game '{game.name}'")
         
         self.master.enable_launcher_frame()
 
         if not game.isJunction and not game.isJunctionTarget:
             _winapi.CreateJunction(to_path, from_path)
-        elif game.isJunctionTarget and to_path != os.path.abspath(game.originalPath):
+        elif game.isJunctionTarget and to_path != os.path.abspath(game.originalPath): #when a junction target is moved to a diff path the link gets remade
             _winapi.CreateJunction(to_path, os.path.abspath(game.originalPath))
             
         for libraryFolder in g.config.selected_launcher.libraryFolders:
@@ -222,17 +226,18 @@ class LibViewFrame(ttk.Frame):
         cur_val = 0
         self.master.progress.config(value=cur_val)
         files, folders = self.count_files_dirs(from_path)
-        max_val = files + folders + 2
+        max_val = files + folders + 2 # + 2 because even with all flags robocopy still has 2 trash lines
         self.master.progress.config(maximum=max_val)
 
-        p = subprocess.Popen(["robocopy", from_path, to_path, "/E", "/MOVE", "/NJH", "/NJS", "/NP"], stdout = subprocess.PIPE, bufsize=1, universal_newlines=True)
+        p = subprocess.Popen(["robocopy", from_path, to_path, "/E", "/MOVE", "/NJH", "/NJS", "/NP"], 
+                             stdout = subprocess.PIPE, bufsize=1, universal_newlines=True)
         while True:
             data = p.stdout.readline()
             if len(data) == 0: break
             cur_val = cur_val + 1
             #if g.debug: print(f"status: {cur_val} / {max_val}")
             self.master.progress.config(value=cur_val)
-            g.root.update()#_idletasks()
+            g.root.update()#_idletasks() #idletasks causes freeze until done
 
     #https://stackoverflow.com/questions/16910330/return-total-number-of-files-in-directory-and-subdirectories
     def count_files_dirs(self, dir_path):

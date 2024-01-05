@@ -7,8 +7,6 @@ import Globals as g
 
 #TODO
 #game folder in both zB steamworks shared
-#optics
-#disable remove button if junctionpair found
 
 g.debug = True
 
