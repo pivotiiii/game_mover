@@ -44,12 +44,15 @@ class LibraryFolder(object):
     #https://stackoverflow.com/questions/1392413/calculating-a-directorys-size-using-python
     def folder_size(self, path):
         total = 0
-        for entry in os.scandir(path):
-            if entry.is_file():
-                total += entry.stat().st_size
-            elif entry.is_dir():
-                total += self.folder_size(entry.path)
-        return total
+        try:
+            for entry in os.scandir(path):
+                if entry.is_file():
+                    total += entry.stat().st_size
+                elif entry.is_dir():
+                    total += self.folder_size(entry.path)
+            return total
+        except PermissionError:
+            return 0
 
 class GameFolder(object):
     def __init__(self, name, library, sizeInBytes = 0, isJunction = False, junctionTarget = None):

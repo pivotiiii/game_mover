@@ -6,8 +6,9 @@ from Config import Config
 import Globals as g
 
 #TODO
-#game folder in both zB steamworks shared
-#cant move folder or parent of folder that is added
+#handle game folder in both zB steamworks shared
+#shouldnt be able to move folder or parent of folder that is added
+#cant remove folder if junction points somewhere else
 
 g.debug = False
 
