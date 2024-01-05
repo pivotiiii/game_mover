@@ -11,7 +11,6 @@ class LauncherFrame(ttk.Frame):
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent)
         self.config(style='Card.TFrame', padding=(6, 6, 7, 7))
-        if g.debug: self.config(bg = "green")
 
         self.selected_launcher_cb = tk.StringVar()
         try:
@@ -120,7 +119,7 @@ class LauncherFrame(ttk.Frame):
             self.add_lib_button.configure(style="Accent.TButton")
         else:
             self.add_lib_button.configure(style="TButton")
-        if g.debug: print("switched to " + g.config.selected_launcher)
+        if g.debug: print("switched to " + g.config.selected_launcher.name)
         self.master.libview_frame.recreate()
         self.selected_launcher_combobox.select_clear()
         g.root.focus_set()

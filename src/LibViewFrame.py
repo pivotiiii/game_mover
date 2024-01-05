@@ -9,7 +9,6 @@ class LibViewFrame(ttk.Frame):
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent)
         self.config(style='Card.TFrame', padding=(6, 6, 7, 7))
-        if g.debug: self.config(bg = "blue")
         self.labels = []
         self.trees = []
         self.scrollbars = []
@@ -39,10 +38,11 @@ class LibViewFrame(ttk.Frame):
             self.labels[-1].grid(column=j, row=0, sticky=("W"), padx=5, pady=(0, 5))
 
             self.trees.append(ttk.Treeview(self, selectmode="browse", columns=("size", "arrow")))
+            self.trees[-1].column("#0", minwidth=100, width=100, anchor="w")
             self.trees[-1].heading('#0', text="Game")
-            self.trees[-1].column("size", width=100, anchor="e")
+            self.trees[-1].column("size", minwidth=100, width=100, anchor="e", stretch=False)
             self.trees[-1].heading("size", text="Size")
-            self.trees[-1].column("arrow", width=100, anchor="center")
+            self.trees[-1].column("arrow", minwidth=100, width=100, anchor="center", stretch=False)
             self.trees[-1].heading("arrow", text="Status")
             self.trees[-1].bind("<ButtonRelease-1>", lambda event, tree_id=i: self.on_selection(tree_id))
 
@@ -54,6 +54,8 @@ class LibViewFrame(ttk.Frame):
                         try:
                             if os.path.abspath(lfs[k].path) == os.path.commonpath([lfs[k].path, game.junctionTarget]):
                                 location_string = self.build_location_string(i, k, len(lfs))
+                                w = max(100, g.measure_in_pixels(location_string))
+                                self.trees[-1].column("arrow", minwidth=w, width=w, anchor="center", stretch=False)
                         except ValueError:
                             continue
                 elif game.isJunctionTarget:
@@ -87,13 +89,20 @@ class LibViewFrame(ttk.Frame):
         uarrowleft = "\u21fd"
         uarrowright = "\u21fe"
 
-        location_string = " "
+        location_string = ""
         arrow = " "
+        space = " "
+        if length > 3: space = ""
         junctionFound = False
         targetFound = False
         for i in range(0, length):
             if i == junctionId:
-                location_string = location_string + " " + uboxdot + " "
+                if i == 0:
+                    location_string = uboxdot + space
+                elif i == length - 1:
+                    location_string = location_string + space + uboxdot
+                else:
+                    location_string = location_string + space + uboxdot + space
                 junctionFound = True
                 if not targetFound:
                     arrow = uarrowright
@@ -106,8 +115,11 @@ class LibViewFrame(ttk.Frame):
                     arrow = uarrowleft
             else:
                 location_string = location_string + ubox
+            if length > 3:
+                arrow = ""
             if not i == length - 1:
                 location_string = location_string + arrow
+            if g.debug: print(f"location_string step {i}: '{location_string}'")
         return location_string
 
     def destroy_widgets(self):

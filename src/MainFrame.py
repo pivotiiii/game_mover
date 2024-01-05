@@ -8,7 +8,6 @@ import Globals as g
 class MainFrame(tk.Frame):
     def __init__(self, parent, debug = False):
         tk.Frame.__init__(self, parent)
-        if g.debug: self.config(bg = "red")
 
         self.launcher_frame = LauncherFrame(self)
         self.launcher_frame.grid(column=0, row=0, sticky=("W"), padx=(5, 0), pady=(10, 0))

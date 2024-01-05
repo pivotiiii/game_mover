@@ -1,4 +1,4 @@
-import tkinter as tk 
+import tkinter as tk
 import os
 import sys
 from MainFrame import MainFrame
@@ -20,12 +20,16 @@ if __name__ == "__main__":
     g.root.title("Game Mover")
     g.root.columnconfigure(0, weight=1)
     g.root.rowconfigure(0, weight=1)
+    g.init_font()
     #MainFrame(g.root).grid(column=0, row=0, sticky=("N", "S", "E", "W"))
     mf = MainFrame(g.root)
     #mf.pack(fill="both", expand=True)
     mf.grid(column=0, row=0, sticky=("N", "S", "E", "W"))
+    #mf.bind("<Configure>", print_size)
+    g.root.minsize(820, 405)
     icon = tk.PhotoImage(file=os.path.join(in_exe_path, "data", "icon.png"))
     g.root.wm_iconphoto(True, icon)
-    g.root.update()
-    print(mf.launcher_frame.remove_launcher_button.winfo_reqwidth())
+    print(f"'Remove Launcher' is {g.measure_in_pixels('Remove Launcher')} pixels and {g.measure_in_text_units('Remove Launcher')} text units wide")
+    #g.root.update()
+    #print(mf.launcher_frame.remove_launcher_button.winfo_reqwidth())
     g.root.mainloop()
