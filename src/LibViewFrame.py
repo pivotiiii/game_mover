@@ -21,6 +21,8 @@ class LibViewFrame(ttk.Frame):
         self.master.recreate_libview_frame()
     
     def refresh(self):
+        if g.config.selected_launcher == None:
+            return
         try:#necessary?
             lfs = g.config.selected_launcher.libraryFolders
         except (KeyError, IndexError, AttributeError):

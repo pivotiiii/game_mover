@@ -34,7 +34,7 @@ class LauncherFrame(ttk.Frame):
         self.add_launcher_button.grid(column=1, row=0, sticky=("W"), padx=(5, 0))
 
         self.add_lib_button = ttk.Button(self, text="Add Folder", command=self.on_add_lib, width=15)
-        if len(g.config.get_launcher_names()) > 0 and len(g.config.selected_launcher.libraryFolders) == 0:
+        if len(g.config.get_launcher_names()) > 0 and len(g.config.selected_launcher.libraryFolders) < 2:
             self.add_lib_button.configure(style="Accent.TButton")
         self.add_lib_button.grid(column=2, row=0, sticky=("W"), padx=(5, 0))
 
@@ -107,7 +107,8 @@ class LauncherFrame(ttk.Frame):
                 messagebox.showerror("Error", f"Folder already added.")
                 return
         g.config.selected_launcher.add_library_folder(folder)
-        self.add_lib_button.configure(style="TButton")
+        if len(g.config.selected_launcher.libraryFolders) > 1:
+            self.add_lib_button.configure(style="TButton")
         self.master.libview_frame.refresh()
         g.root.focus_set()
         g.config.save()
