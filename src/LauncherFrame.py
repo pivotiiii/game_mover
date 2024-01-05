@@ -42,13 +42,21 @@ class LauncherFrame(ttk.Frame):
         self.remove_launcher_button = ttk.Button(self, text="Remove Launcher", command=self.on_remove_launcher, width=15)
         self.remove_launcher_button.grid(column=3, row=0, sticky=("W"), padx=(5, 0))
 
-
+        if g.config.selected_launcher == None:
+            self.add_lib_button.configure(state="disabled")
+            self.remove_launcher_button.configure(state="disabled")
 
         self.refresh()
 
     def refresh(self):
         names = g.config.get_launcher_names()
         names.sort()
+        if len(names) > 0:
+            self.add_lib_button.configure(state="normal")
+            self.remove_launcher_button.configure(state="normal")
+        else:
+            self.add_lib_button.configure(state="disabled")
+            self.remove_launcher_button.configure(state="disabled")
         if g.debug: print(f"launcher names: {names}")
         self.selected_launcher_combobox["values"] = names
         try:

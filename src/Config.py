@@ -40,6 +40,8 @@ class Config():
                 return d
 
     def save(self, launcher_dict = None, last_selected = None):
+        if self.selected_launcher == None:
+            return
         if not launcher_dict: launcher_dict = self.launchers
         if not last_selected: last_selected = self.selected_launcher.name
         config = dict()

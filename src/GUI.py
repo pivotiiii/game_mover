@@ -7,6 +7,7 @@ import Globals as g
 
 #TODO
 #game folder in both zB steamworks shared
+#pretty add launcher dialog
 
 g.debug = True
 
