@@ -12,11 +12,7 @@ import sys
 
 #TODO
 #game folder in both zB steamworks shared
-#remove launcher
-#heading Game in tree
-#always use json next to .py /.exe
 #resize on folder deletion
-#dont add empty folder if folder add is canceled
 
 debug = False
 
@@ -291,6 +287,8 @@ class LauncherFrame(tk.Frame):
 
     def on_add_lib(self, event=None):
         folder = filedialog.askdirectory()
+        if folder == "":
+            return
         for libraryFolder in config.selected_launcher.libraryFolders:
             if os.path.abspath(folder) == os.path.abspath(libraryFolder.path):
                 messagebox.showerror("Error", f"Folder already added.")
