@@ -580,6 +580,6 @@ if __name__ == "__main__":
     root.rowconfigure(0, weight=1)
     #MainFrame(root).grid(column=0, row=0, sticky=("N", "S", "E", "W"))
     MainFrame(root).pack(fill="both", expand=True)
-    icon = tk.PhotoImage(file=os.path.join(in_exe_path, "icon.png"))
+    icon = tk.PhotoImage(file=os.path.join(in_exe_path, "data", "icon.png"))
     root.wm_iconphoto(True, icon)
     root.mainloop()
