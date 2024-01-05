@@ -7,9 +7,9 @@ import Globals as g
 
 #TODO
 #game folder in both zB steamworks shared
-#pretty add launcher dialog
+#cant move folder or parent of folder that is added
 
-g.debug = True
+g.debug = False
 
 class MainWindow(tk.Tk):
     def __init__(self):

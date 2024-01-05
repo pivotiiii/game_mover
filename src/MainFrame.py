@@ -21,7 +21,6 @@ class MainFrame(tk.Frame):
         self.progress_frame.columnconfigure(0, weight=1)
         self.progress = ttk.Progressbar(self.progress_frame, orient="horizontal", mode="determinate")
         self.progress.grid(column=0, row=0, sticky=("W", "E"))
-        #self.progress.grid(column=0, columnspan=3, row=2, sticky=("W", "E"))
 
         self.is_dark_mode = tk.BooleanVar() #read from config
         self.is_dark_mode.set(g.config.is_dark_mode)

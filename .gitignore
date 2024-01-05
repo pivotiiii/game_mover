@@ -4,4 +4,5 @@ src/game_mover.json
 build
 dist
 themes
-icon
+images
+*tcl

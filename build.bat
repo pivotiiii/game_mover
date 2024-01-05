@@ -9,6 +9,7 @@ cd build
 py -3-64 -m nuitka^
  --onefile^
  --standalone^
+ --disable-console^
  --report=compilation-report.xml^
  --onefile-tempdir-spec="%TEMP%\game_mover\%VERSION%"^
  --enable-plugin=tk-inter^
