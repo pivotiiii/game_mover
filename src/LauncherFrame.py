@@ -49,7 +49,7 @@ class LauncherFrame(ttk.Frame):
     def refresh(self):
         names = g.config.get_launcher_names()
         names.sort()
-        if g.debug: print(names)
+        if g.debug: print(f"launcher names: {names}")
         self.selected_launcher_combobox["values"] = names
         try:
             self.selected_launcher_combobox.set(g.config.selected_launcher.name)
@@ -119,7 +119,7 @@ class LauncherFrame(ttk.Frame):
             self.add_lib_button.configure(style="Accent.TButton")
         else:
             self.add_lib_button.configure(style="TButton")
-        if g.debug: print("switched to " + g.config.selected_launcher.name)
+        if g.debug: print(f"switched to '{g.config.selected_launcher.name}'")
         self.master.libview_frame.recreate()
         self.selected_launcher_combobox.select_clear()
         g.root.focus_set()

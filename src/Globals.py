@@ -22,4 +22,7 @@ def measure_in_text_units(text: str) -> int:
             #if abs(measure_in_pixels("0" * (text_units - 1)) - pixels) < abs(pixels_conv - pixels):
             #    return text_units - 1
             return text_units
+
+def widget_size_bind(event):
+    if debug: print(f"{event.widget} width: {event.width} height: {event.height}")
         

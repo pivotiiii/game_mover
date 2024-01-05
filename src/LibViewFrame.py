@@ -24,12 +24,9 @@ class LibViewFrame(ttk.Frame):
             lfs = g.config.selected_launcher.libraryFolders
         except (KeyError, IndexError, AttributeError):
             lfs = []
-        if g.debug: print("libdirs for " + g.config.selected_launcher.name + " are " + str([folder.path for folder in lfs]))
+        if g.debug: print(f"libdirs for '{g.config.selected_launcher.name}' are '{str([folder.path for folder in lfs])}'")
         
-        if g.debug: print(self.winfo_width())
         self.destroy_widgets()
-
-        #self.master.launcher_frame.grid_configure(column=len(self.library_dirs), row=0, sticky=)
 
         for i in range(0, len(lfs)):
             j = (i + 1) * 3 - 2
@@ -37,16 +34,23 @@ class LibViewFrame(ttk.Frame):
             self.labels.append(ttk.Label(self, text=lfs[i].path))
             self.labels[-1].grid(column=j, row=0, sticky=("W"), padx=5, pady=(0, 5))
 
-            self.trees.append(ttk.Treeview(self, selectmode="browse", columns=("size", "arrow")))
-            self.trees[-1].column("#0", minwidth=100, width=100, anchor="w")
+            min_width = g.measure_in_pixels("999.99 GB")
+            self.trees.append(ttk.Treeview(self, selectmode="browse", columns=("size", "status")))
+            self.trees[-1].column("#0", minwidth=min_width, width=2*min_width, anchor="w")
             self.trees[-1].heading('#0', text="Game")
-            self.trees[-1].column("size", minwidth=100, width=100, anchor="e", stretch=False)
+            self.trees[-1].column("size", minwidth=min_width, width=min_width, anchor="e", stretch=False)
             self.trees[-1].heading("size", text="Size")
-            self.trees[-1].column("arrow", minwidth=100, width=100, anchor="center", stretch=False)
-            self.trees[-1].heading("arrow", text="Status")
+            self.trees[-1].column("status", minwidth=min_width, width=min_width, anchor="center", stretch=False)
+            self.trees[-1].heading("status", text="Status")
             self.trees[-1].bind("<ButtonRelease-1>", lambda event, tree_id=i: self.on_selection(tree_id))
+            #if g.debug: self.trees[-1].bind("<Configure>", g.widget_size_bind)
 
+            max_nr_games = 0
+            nr_games = 0
             for game in lfs[i].games:
+                nr_games = nr_games + 1
+                if nr_games > max_nr_games:
+                    max_nr_games = nr_games
                 location_string = ""
                 if game.isJunction:
                     location_string = str(game.junctionTarget)
@@ -54,14 +58,15 @@ class LibViewFrame(ttk.Frame):
                         try:
                             if os.path.abspath(lfs[k].path) == os.path.commonpath([lfs[k].path, game.junctionTarget]):
                                 location_string = self.build_location_string(i, k, len(lfs))
-                                w = max(100, g.measure_in_pixels(location_string))
-                                self.trees[-1].column("arrow", minwidth=w, width=w, anchor="center", stretch=False)
+                                w = max(min_width, g.measure_in_pixels(location_string))
+                                self.trees[-1].column("status", minwidth=w, width=w, anchor="center", stretch=False)
                         except ValueError:
                             continue
                 elif game.isJunctionTarget:
                     location_string = "JUNCTION"
                 self.trees[-1].insert("", "end", game.name, text=game.name, values=(game.size, location_string))
 
+            self.trees[-1].config(height=min(15, max_nr_games))
             self.trees[-1].grid(column=j, columnspan=2, row=1, sticky=("N", "W", "E", "S"), padx=(3, 0))
             
             self.scrollbars.append(ttk.Scrollbar(self, orient="vertical", command=self.trees[-1].yview))
@@ -76,11 +81,11 @@ class LibViewFrame(ttk.Frame):
             self.del_buttons[-1].config(command=lambda button=self.del_buttons[-1]: self.on_del_button(button))
             self.del_buttons[-1].grid(column=j+1, row=2, sticky=("E"), padx=(0, 0), pady=(5, 0))
 
-            self.columnconfigure([j], minsize=300, weight=1)
-            self.columnconfigure([j+1], minsize=10, weight=0)
+            self.columnconfigure([j], minsize=0, weight=1) #trees
+            self.columnconfigure([j+1], minsize=0, weight=0) #scrollbars
         if len(self.scrollbars) > 0: self.scrollbars[-1].grid_configure(padx=0)
-        self.rowconfigure([0, 2], weight=0, minsize=10)
-        self.rowconfigure([1], minsize=110, weight=1)
+        self.rowconfigure([0, 2], minsize=10, weight=0) #buttons
+        self.rowconfigure([1], minsize=110, weight=1) #trees, scrollbars
 
     def build_location_string(self, junctionId, targetId, length):
         ucross = "\u2612"
@@ -119,7 +124,6 @@ class LibViewFrame(ttk.Frame):
                 arrow = ""
             if not i == length - 1:
                 location_string = location_string + arrow
-            if g.debug: print(f"location_string step {i}: '{location_string}'")
         return location_string
 
     def destroy_widgets(self):
@@ -143,10 +147,9 @@ class LibViewFrame(ttk.Frame):
         try:
             selected_item = self.trees[tree_id].selection()[0]
         except IndexError:
-            if g.debug: print("selected heading")
             return
         selected_path = g.config.selected_launcher.libraryFolders[tree_id].path
-        if g.debug: print(f"selected {selected_item} from tree {tree_id} with path {selected_path}")   
+        if g.debug: print(f"selected '{selected_item}' from tree '{tree_id}' with path '{selected_path}'")   
 
         for i in range(0, len(self.trees)):
             if i == tree_id: continue
@@ -177,7 +180,7 @@ class LibViewFrame(ttk.Frame):
 
     def on_del_button(self, button, event=None):
         buttonindex = int((button.grid_info()["column"]+1)/3-1)
-        if g.debug: print("deleting libdir " + g.config.selected_launcher.libraryFolders[buttonindex].path)
+        if g.debug: print(f"deleting libdir '{g.config.selected_launcher.libraryFolders[buttonindex].path}'")
         g.config.selected_launcher.libraryFolders.pop(buttonindex)
         self.master.recreate_libview_frame()
         g.config.save()
@@ -199,7 +202,7 @@ class LibViewFrame(ttk.Frame):
             from_path = os.path.abspath(os.path.join(g.config.selected_libraryFolder.path, game.name))
             to_path = os.path.abspath(os.path.join(g.config.selected_launcher.libraryFolders[buttonindex].path, game.name))
         
-        if g.debug: print(f"moving game {game.name} from {from_path} to {to_path}")
+        if g.debug: print(f"moving game '{game.name}' from '{from_path}' to '{to_path}'")
         self.master.disable_all_frames()
         self.move_folders(from_path, to_path)
         
