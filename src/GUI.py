@@ -8,14 +8,16 @@ import os
 import subprocess
 import _winapi
 import sv_ttk
+import sys
 
 #TODO
 #game folder in both zB steamworks shared
 #remove launcher
 #heading Game in tree
 #always use json next to .py /.exe
+#resize on folder deletion
+#dont add empty folder if folder add is canceled
 
-config_json = "game_mover.json"
 debug = False
 
 class Config(object):
@@ -86,6 +88,10 @@ class Config(object):
     
     def set_selected_launcher_by_name(self, name) -> None:
         self.selected_launcher = self.launchers[name]
+
+    def remove_selected_launcher(self) -> None:
+        self.launchers.pop(self.selected_launcher.name)
+        self.selected_launcher = None
     
     def gsl(self) -> game_mover.Launcher:
         return self.selected_launcher
@@ -219,9 +225,13 @@ class LauncherFrame(tk.Frame):
         self.add_launcher_button.grid(column=1, row=0, sticky=("W"), padx=(2, 0))
 
         self.add_lib_button = ttk.Button(self, text="Add Folder", command=self.on_add_lib)
+        if len(config.get_launcher_names()) > 0 and len(config.selected_launcher.libraryFolders) == 0:
+            self.add_lib_button.configure(style="Accent.TButton")
         self.add_lib_button.grid(column=2, row=0, sticky=("W"), padx=(2, 0))
 
-        
+
+        self.remove_launcher_button = ttk.Button(self, text="Remove Launcher", command=self.on_remove_launcher)
+        self.remove_launcher_button.grid(column=3, row=0, sticky=("W"), padx=(2, 0))
 
         self.refresh()
 
@@ -262,6 +272,23 @@ class LauncherFrame(tk.Frame):
         self.refresh()
         config.save()
 
+    def on_remove_launcher(self):
+        config.remove_selected_launcher()
+        names = config.get_launcher_names()
+        if len(names) > 0:
+            names.sort()
+            new_selection = names[0]
+            config.set_selected_launcher_by_name(new_selection)
+            self.selected_launcher_cb.set(new_selection)
+        else:
+            self.selected_launcher_cb.set("")
+        self.master.libview_frame.recreate()
+        root.focus_set()
+        self.refresh()
+        config.save()
+
+
+
     def on_add_lib(self, event=None):
         folder = filedialog.askdirectory()
         for libraryFolder in config.selected_launcher.libraryFolders:
@@ -277,6 +304,10 @@ class LauncherFrame(tk.Frame):
     def on_launcher_change(self, name, event=None):
         config.set_selected_launcher_by_name(name)
         self.selected_launcher_cb.set(name)
+        if len(config.selected_launcher.libraryFolders) == 0:
+            self.add_lib_button.configure(style="Accent.TButton")
+        else:
+            self.add_lib_button.configure(style="TButton")
         if debug: print("switched to " + config.selected_launcher)
         self.master.libview_frame.recreate()
         root.focus_set()
@@ -539,6 +570,9 @@ class LauncherDialog(tk.Toplevel):
 
 
 if __name__ == "__main__":
+    near_exe_path = os.path.dirname(os.path.abspath(sys.argv[0]))   #for files in the same folder as the .exe created by nuitka
+    in_exe_path = os.path.dirname(os.path.abspath(__file__))        #for files that should be included in the .exe (e.g. the icon)
+    config_json = os.path.join(near_exe_path, "game_mover.json")
     config = Config()
     root = tk.Tk()
     root.title("Game Mover")
@@ -546,4 +580,6 @@ if __name__ == "__main__":
     root.rowconfigure(0, weight=1)
     #MainFrame(root).grid(column=0, row=0, sticky=("N", "S", "E", "W"))
     MainFrame(root).pack(fill="both", expand=True)
+    icon = tk.PhotoImage(file=os.path.join(in_exe_path, "icon.png"))
+    root.wm_iconphoto(True, icon)
     root.mainloop()
