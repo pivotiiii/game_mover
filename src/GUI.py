@@ -12,7 +12,7 @@ import sys
 
 #TODO
 #game folder in both zB steamworks shared
-#resize on folder deletion
+#optics
 
 debug = False
 
@@ -143,10 +143,10 @@ class MainFrame(tk.Frame):
         if debug: self.config(bg = "red")
 
         self.launcher_frame = LauncherFrame(self)
-        self.launcher_frame.grid(column=0, row=0, sticky=("W"), padx=5, pady=(10, 5))
+        self.launcher_frame.grid(column=0, row=0, sticky=("W"), padx=(5, 0), pady=(10, 0))
 
         self.libview_frame = LibViewFrame(self)
-        self.libview_frame.grid(column=0, columnspan=3, row=1, sticky=("N", "W", "E", "S"), pady=5)
+        self.libview_frame.grid(column=0, columnspan=3, row=1, sticky=("N", "W", "E", "S"), padx=(5, 5), pady=(10, 0))
 
         self.progress = ttk.Progressbar(self, orient="horizontal", mode="determinate")
         self.progress.grid(column=0, columnspan=3, row=2, sticky=("W", "E"))
@@ -154,9 +154,9 @@ class MainFrame(tk.Frame):
         self.is_dark_mode = tk.BooleanVar() #read from config
         self.is_dark_mode.set(config.is_dark_mode)
         self.theme_label = ttk.Label(self, text="Dark Mode")
-        self.theme_label.grid(column=1, row=0, sticky=("E"))
+        self.theme_label.grid(column=1, row=0, sticky=("E"), pady=(10, 0))
         self.theme_switch = ttk.Checkbutton(self, style="Switch.TCheckbutton", variable=self.is_dark_mode, command=self.set_theme)
-        self.theme_switch.grid(column=2, row=0, sticky=("E"))
+        self.theme_switch.grid(column=2, row=0, sticky=("E"), pady=(10, 0))
         try:
             self.set_theme()
         except AttributeError:
@@ -201,9 +201,10 @@ class MainFrame(tk.Frame):
         self.libview_frame.grid(column=0, columnspan=3, row=1, sticky=("N", "W", "E", "S"), pady=5)
 
 
-class LauncherFrame(tk.Frame):
+class LauncherFrame(ttk.Frame):
     def __init__(self, parent):
-        tk.Frame.__init__(self, parent)
+        ttk.Frame.__init__(self, parent)
+        self.config(style='Card.TFrame', padding=(5, 6, 7, 8))
         if debug: self.config(bg = "green")
 
         self.selected_launcher_cb = tk.StringVar()
@@ -215,19 +216,21 @@ class LauncherFrame(tk.Frame):
         self.selected_launcher_optionmenu = ttk.OptionMenu(self, variable=self.selected_launcher_cb, direction="below", command=self.on_launcher_change)
         self.selected_launcher_optionmenu.grid(column=0, row=0, sticky=("nws"))
 
-        self.add_launcher_button = ttk.Button(self, text="Add Launcher", command=self.on_add_launcher)
+        self.add_launcher_button = ttk.Button(self, text="Add Launcher", command=self.on_add_launcher, width=15)
         if len(config.get_launcher_names()) == 0:
             self.add_launcher_button.configure(style="Accent.TButton")
-        self.add_launcher_button.grid(column=1, row=0, sticky=("W"), padx=(2, 0))
+        self.add_launcher_button.grid(column=1, row=0, sticky=("W"), padx=(5, 0))
 
-        self.add_lib_button = ttk.Button(self, text="Add Folder", command=self.on_add_lib)
+        self.add_lib_button = ttk.Button(self, text="Add Folder", command=self.on_add_lib, width=15)
         if len(config.get_launcher_names()) > 0 and len(config.selected_launcher.libraryFolders) == 0:
             self.add_lib_button.configure(style="Accent.TButton")
-        self.add_lib_button.grid(column=2, row=0, sticky=("W"), padx=(2, 0))
+        self.add_lib_button.grid(column=2, row=0, sticky=("W"), padx=(5, 0))
 
 
-        self.remove_launcher_button = ttk.Button(self, text="Remove Launcher", command=self.on_remove_launcher)
-        self.remove_launcher_button.grid(column=3, row=0, sticky=("W"), padx=(2, 0))
+        self.remove_launcher_button = ttk.Button(self, text="Remove Launcher", command=self.on_remove_launcher, width=15)
+        self.remove_launcher_button.grid(column=3, row=0, sticky=("W"), padx=(5, 0))
+
+
 
         self.refresh()
 
@@ -239,7 +242,7 @@ class LauncherFrame(tk.Frame):
         menu.delete(0, "end")
         for launcher_name in names:
             menu.add_command(label=launcher_name, command=lambda value=launcher_name: self.on_launcher_change(value))
-        self.selected_launcher_optionmenu.config(width=-10)
+        self.selected_launcher_optionmenu.config(width=-15)
 
     def on_add_launcher(self, event=None):
         launcher_name = LauncherDialog(self).show()
@@ -283,8 +286,6 @@ class LauncherFrame(tk.Frame):
         self.refresh()
         config.save()
 
-
-
     def on_add_lib(self, event=None):
         folder = filedialog.askdirectory()
         if folder == "":
@@ -313,9 +314,10 @@ class LauncherFrame(tk.Frame):
         
 
 
-class LibViewFrame(tk.Frame):
+class LibViewFrame(ttk.Frame):
     def __init__(self, parent):
-        tk.Frame.__init__(self, parent)
+        ttk.Frame.__init__(self, parent)
+        self.config(style='Card.TFrame', padding=(5, 6, 7, 8))
         if debug: self.config(bg = "blue")
         self.labels = []
         self.trees = []
@@ -469,7 +471,7 @@ class LibViewFrame(tk.Frame):
         buttonindex = int((button.grid_info()["column"]+1)/3-1)
         if debug: print("deleting libdir " + config.selected_launcher.libraryFolders[buttonindex].path)
         config.selected_launcher.libraryFolders.pop(buttonindex)
-        self.master.libview_frame.refresh()
+        self.master.recreate_libview_frame()
         config.save()
 
     def on_move_button(self, button, event=None):
@@ -577,7 +579,10 @@ if __name__ == "__main__":
     root.columnconfigure(0, weight=1)
     root.rowconfigure(0, weight=1)
     #MainFrame(root).grid(column=0, row=0, sticky=("N", "S", "E", "W"))
-    MainFrame(root).pack(fill="both", expand=True)
+    mf = MainFrame(root)
+    mf.pack(fill="both", expand=True)
     icon = tk.PhotoImage(file=os.path.join(in_exe_path, "data", "icon.png"))
     root.wm_iconphoto(True, icon)
+    root.update()
+    print(mf.launcher_frame.remove_launcher_button.winfo_reqwidth())
     root.mainloop()
