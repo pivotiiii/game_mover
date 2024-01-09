@@ -40,9 +40,11 @@ class MainFrame(tk.Frame):
     def set_theme(self):
         if self.is_dark_mode.get():
             sv_ttk.set_theme("dark")
+            self.master.after(1, self.master.set_titlebar_color, 1) #after to make sure the window is drawn with proper size on startup, 1ms is enough
             g.config.is_dark_mode = True
         else:
             sv_ttk.set_theme("light")
+            self.master.after(1, self.master.set_titlebar_color, 0)
             g.config.is_dark_mode = False
         g.config.save()
             

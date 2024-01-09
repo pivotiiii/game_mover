@@ -1,6 +1,7 @@
 import tkinter as tk
 import os
 import sys
+from ctypes import windll, byref, sizeof, c_int
 from MainFrame import MainFrame
 from Config import Config
 import Globals as g
@@ -37,6 +38,23 @@ class MainWindow(tk.Tk):
 
         mf = MainFrame(self)
         mf.grid(column=0, row=0, sticky=("N", "S", "E", "W"))
+
+    #https://stackoverflow.com/a/70724666
+    def set_titlebar_color(self, value):
+        self.update()
+        hwnd = windll.user32.GetParent(self.winfo_id())
+        DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+        DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19
+        if windll.dwmapi.DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, byref(c_int(value)), sizeof(c_int(value))) != 0:
+            windll.dwmapi.DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1, byref(c_int(value)), sizeof(c_int(value)))
+
+        #title bar needs to change ever so slightly, doesnt update otherwise :(
+        if self.state() == "zoomed":
+            self.state('normal')
+            self.state('zoomed')
+        else:
+            self.attributes("-alpha", 0.99)
+            self.attributes("-alpha", 1)
 
 
 if __name__ == "__main__":
