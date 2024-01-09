@@ -232,7 +232,7 @@ class LibViewFrame(ttk.Frame):
         self.master.progress.config(maximum=max_val)
 
         p = subprocess.Popen(["robocopy", from_path, to_path, "/E", "/MOVE", "/NJH", "/NJS", "/NP"], 
-                             stdout = subprocess.PIPE, bufsize=1, universal_newlines=True)
+                             stdout = subprocess.PIPE, bufsize=1, universal_newlines=True, creationflags=subprocess.CREATE_NO_WINDOW)
         while True:
             data = p.stdout.readline()
             if len(data) == 0: break
